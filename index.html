@@ -1,0 +1,1348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>NIVtechExchange · Ventilator Parameter Translation Engine</title>
+<meta name="description" content="NIVtechExchange: cross-platform translation of home mechanical ventilation parameters." />
+<meta name="robots" content="noindex" />
+<style>
+  :root{
+    --bg:#070b14; --bg2:#0b1220; --panel:#101a2e; --panel2:#15223b; --line:#22345a;
+    --ink:#e7eefb; --mute:#8aa0c6; --dim:#5d7399;
+    --teal:#2dd4bf; --teal-d:#0f766e; --amber:#fbbf24; --amber-d:#92650a; --rose:#fb7185; --lime:#a3e635;
+    --mono: ui-monospace, "Cascadia Code", "SF Mono", Consolas, "Liberation Mono", monospace;
+    --sans: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:var(--sans);background:radial-gradient(1200px 600px at 80% -10%,#0f2a3d 0%,transparent 60%),var(--bg);color:var(--ink);min-height:100vh;font-size:14px;line-height:1.45}
+  button{font-family:inherit;color:inherit;cursor:pointer}
+  /* header */
+  .top{display:flex;align-items:center;gap:16px;padding:14px 28px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#0c1426,#0a1120);position:sticky;top:0;z-index:20}
+  .brand{display:flex;align-items:center;gap:12px}
+  .brand svg{width:34px;height:34px;flex:none}
+  .brand-name{font-size:21px;font-weight:700;letter-spacing:.2px}
+  .brand-name b{color:var(--teal);font-weight:700}
+  .brand-sub{font-family:var(--mono);font-size:10.5px;color:var(--mute);letter-spacing:.14em;text-transform:uppercase}
+  .spacer{flex:1}
+  .chip-btn{background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:7px 14px;font-size:12px;color:var(--ink)}
+  .chip-btn:hover{border-color:var(--teal);color:var(--teal)}
+  .tag{font-family:var(--mono);font-size:10px;color:var(--dim)}
+  .notice{margin:14px 28px 0;border:1px solid var(--amber-d);background:rgba(251,191,36,.07);color:#f6d98a;border-radius:10px;padding:9px 14px;font-size:12px;font-family:var(--mono)}
+  /* layout */
+  .shell{display:grid;grid-template-columns:200px 1fr;gap:22px;padding:18px 28px 90px;max-width:1500px;margin:0 auto}
+  .rail{position:sticky;top:84px;align-self:start}
+  .rail a{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;color:var(--mute);text-decoration:none;font-size:13px;border:1px solid transparent}
+  .rail a:hover{background:var(--panel);color:var(--ink)}
+  .rail a.on{background:var(--panel2);border-color:var(--line);color:var(--ink)}
+  .rail .n{font-family:var(--mono);font-size:11px;color:var(--teal);border:1px solid var(--teal-d);border-radius:6px;padding:1px 6px}
+  .rail .meta{margin-top:18px;border-top:1px dashed var(--line);padding-top:14px;font-family:var(--mono);font-size:11px;color:var(--dim);line-height:1.7}
+  .rail .meta b{color:var(--mute);font-weight:600}
+  .stack{display:flex;flex-direction:column;gap:20px;min-width:0}
+  .block{background:linear-gradient(180deg,var(--panel),#0e1829);border:1px solid var(--line);border-radius:16px;padding:18px 20px;scroll-margin-top:90px}
+  .block h2{display:flex;align-items:baseline;gap:10px;font-size:15px;font-weight:650;margin-bottom:4px}
+  .block h2 .n{font-family:var(--mono);font-size:11px;color:var(--teal)}
+  .hint{color:var(--mute);font-size:12px;margin-bottom:12px}
+  /* tiles */
+  .find{width:100%;background:var(--bg2);border:1px solid var(--line);border-radius:10px;color:var(--ink);padding:9px 12px;font-family:var(--mono);font-size:12.5px;margin-bottom:12px}
+  .find:focus,.num:focus,.txt:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px rgba(45,212,191,.15)}
+  .tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}
+  .tile{position:relative;text-align:left;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:11px 12px 11px 16px;overflow:hidden;transition:.12s}
+  .tile::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--bar,#3b82f6)}
+  .tile:hover{border-color:var(--teal);transform:translateY(-1px)}
+  .tile.on{background:linear-gradient(135deg,#0f2c35,#0e1d33);border-color:var(--teal);box-shadow:0 0 0 1px var(--teal) inset}
+  .tile .t1{font-weight:600;font-size:13px}
+  .tile .t2{font-family:var(--mono);font-size:10.5px;color:var(--mute);margin-top:2px}
+  .pills{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .pill{background:var(--bg2);border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-size:12.5px;font-family:var(--mono)}
+  .pill:hover{border-color:var(--teal)}
+  .pill.on{background:var(--teal);border-color:var(--teal);color:#042f2a;font-weight:700}
+  .modeinfo{margin-top:12px;font-size:12px;color:var(--mute);border-left:3px solid var(--teal-d);padding:2px 0 2px 10px}
+  .modeinfo .intent{font-family:var(--mono);color:var(--amber)}
+  /* parameter console */
+  .console{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--bg2)}
+  .prow{display:grid;grid-template-columns:minmax(150px,1.1fr) 2.2fr;gap:14px;align-items:center;padding:10px 14px;border-bottom:1px solid #16264a}
+  .prow:last-child{border-bottom:none}
+  .prow:hover{background:#0d1830}
+  .plabel{font-size:13px;font-weight:550}
+  .pmeta{font-family:var(--mono);font-size:10.5px;color:var(--dim);margin-top:2px}
+  .ctl{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .step{display:inline-flex;align-items:stretch;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--panel)}
+  .step button{width:34px;background:var(--panel2);border:none;font-size:17px;color:var(--teal)}
+  .step button:hover{background:var(--teal);color:#042f2a}
+  .num,.txt{width:84px;background:transparent;border:none;border-left:1px solid var(--line);border-right:1px solid var(--line);color:var(--ink);text-align:center;font-family:var(--mono);font-size:14px;padding:6px 4px}
+  .unit{font-family:var(--mono);font-size:11px;color:var(--mute)}
+  input[type=range]{flex:1;min-width:120px;max-width:300px;accent-color:var(--teal)}
+  .seg{display:inline-flex;flex-wrap:wrap;gap:4px}
+  .seg button{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:5px 11px;font-family:var(--mono);font-size:12px}
+  .seg button:hover{border-color:var(--teal)}
+  .seg button.on{background:var(--amber);border-color:var(--amber);color:#2b1d00;font-weight:700}
+  .rng{font-family:var(--mono);font-size:10.5px;color:var(--dim)}
+  /* output */
+  .out-head{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin-bottom:14px}
+  .route{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:12px;color:var(--mute)}
+  .route b{color:var(--ink)}
+  .route i{color:var(--teal);font-style:normal}
+  .modebadge{background:linear-gradient(135deg,var(--teal),#38bdf8);color:#04222b;border-radius:10px;padding:8px 16px;font-weight:800;font-size:17px;font-family:var(--mono)}
+  table.res{width:100%;border-collapse:collapse;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  table.res td{padding:9px 14px;border-bottom:1px solid #16264a;font-size:13px;vertical-align:top}
+  table.res tr:last-child td{border-bottom:none}
+  table.res td.k{color:var(--mute);width:48%}
+  table.res td.v{font-family:var(--mono);font-weight:700;font-size:14px}
+  table.res tr.flag td{background:rgba(251,191,36,.07)}
+  table.res tr.flag td.v::after{content:" ▲";color:var(--amber);font-size:10px}
+  .adv{margin-top:16px;display:flex;flex-direction:column;gap:7px}
+  .adv h3{font-size:12px;font-family:var(--mono);letter-spacing:.12em;color:var(--mute);text-transform:uppercase;margin-bottom:2px}
+  .a{display:grid;grid-template-columns:78px 1fr;gap:10px;align-items:start;border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:12.3px;background:var(--bg2)}
+  .a .lv{font-family:var(--mono);font-size:10px;letter-spacing:.1em;font-weight:700;border-radius:6px;padding:2px 6px;text-align:center}
+  .a.trace .lv{background:rgba(45,212,191,.12);color:var(--teal)}
+  .a.warn{border-color:var(--amber-d);background:rgba(251,191,36,.06)}
+  .a.warn .lv{background:rgba(251,191,36,.18);color:var(--amber)}
+  .a .tx{font-family:var(--mono);font-size:12px;color:#cfdcf5;word-break:break-word}
+  /* actions */
+  .dock{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:center;gap:10px;padding:12px;background:linear-gradient(180deg,transparent,#060a12 40%);z-index:15}
+  .act{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px 18px;font-size:13px;font-weight:600}
+  .act:hover{border-color:var(--teal);color:var(--teal)}
+  .act.pri{background:var(--teal);border-color:var(--teal);color:#042f2a}
+  .act.pri:hover{color:#042f2a;filter:brightness(1.08)}
+  .toast{position:fixed;left:50%;bottom:76px;transform:translateX(-50%);background:var(--teal);color:#042f2a;padding:8px 16px;border-radius:999px;font-weight:700;font-size:12.5px;opacity:0;pointer-events:none;transition:.2s;z-index:30}
+  .toast.show{opacity:1}
+  .drawer{position:fixed;top:0;right:0;bottom:0;width:320px;background:#0a1223;border-left:1px solid var(--line);transform:translateX(100%);transition:.2s;z-index:40;padding:20px;display:flex;flex-direction:column;gap:8px}
+  .drawer.open{transform:none}
+  .drawer h3{font-size:13px;font-family:var(--mono);letter-spacing:.12em;color:var(--mute);text-transform:uppercase;margin-bottom:6px}
+  .drawer a{color:var(--ink);text-decoration:none;border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-size:13px;background:var(--panel)}
+  .drawer a:hover{border-color:var(--teal);color:var(--teal)}
+  @media(max-width:900px){.shell{grid-template-columns:1fr}.rail{display:none}.prow{grid-template-columns:1fr}.top{padding:12px 16px}.shell,.notice{margin-left:0;margin-right:0;padding-left:14px;padding-right:14px}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <svg viewBox="0 0 40 40" aria-hidden="true"><polygon points="20,2 36,11 36,29 20,38 4,29 4,11" fill="none" stroke="#2dd4bf" stroke-width="2.2"/><path d="M11 22 L16 22 L19 14 L23 28 L26 20 L29 20" fill="none" stroke="#fbbf24" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <div>
+      <div class="brand-name">NIVtech<b>Exchange</b></div>
+      <div class="brand-sub">Ventilator parameter translation engine</div>
+    </div>
+  </div>
+  <div class="spacer"></div>
+  <span class="tag" id="buildTag"></span>
+  <button class="chip-btn" id="refBtn" type="button">Device references</button>
+</header>
+
+<div class="notice">NOTICE ▸ Decision-support utility. Output is a starting point for a clinician, not a substitute for clinical assessment. Leak (single-limb, open) circuits only. MPV, SIMV and HFNT are not mapped.</div>
+
+<div class="shell">
+  <nav class="rail" aria-label="Workflow">
+    <a href="#s1" data-s="s1" class="on"><span class="n">01</span> Source</a>
+    <a href="#s2" data-s="s2"><span class="n">02</span> Parameters</a>
+    <a href="#s3" data-s="s3"><span class="n">03</span> Target</a>
+    <a href="#s4" data-s="s4"><span class="n">04</span> Output</a>
+    <div class="meta" id="railMeta"></div>
+  </nav>
+
+  <div class="stack">
+    <section class="block" id="s1">
+      <h2><span class="n">01</span> Select source platform</h2>
+      <p class="hint">Pick the ventilator the patient is on now, then the active mode.</p>
+      <input class="find" id="srcFind" type="search" placeholder="filter platforms…  (e.g. astral, vivo, luisa)" autocomplete="off" />
+      <div class="tiles" id="srcTiles"></div>
+      <div class="pills" id="modePills"></div>
+      <div class="modeinfo" id="modeInfo"></div>
+    </section>
+
+    <section class="block" id="s2">
+      <h2><span class="n">02</span> Enter source parameters</h2>
+      <p class="hint">Use the steppers, sliders or chips. The output below recalculates on every change.</p>
+      <div class="console" id="console"></div>
+    </section>
+
+    <section class="block" id="s3">
+      <h2><span class="n">03</span> Select target platform</h2>
+      <p class="hint">Where the prescription is going.</p>
+      <div class="tiles" id="tgtTiles"></div>
+    </section>
+
+    <section class="block" id="s4">
+      <h2><span class="n">04</span> Translated output</h2>
+      <div class="out-head">
+        <div class="modebadge" id="outMode"></div>
+        <div class="route" id="outRoute"></div>
+      </div>
+      <table class="res"><tbody id="outRows"></tbody></table>
+      <div class="adv" id="outAdv"></div>
+    </section>
+  </div>
+</div>
+
+<div class="dock">
+  <button class="act pri" id="bDl" type="button">⭳ Download report</button>
+  <button class="act" id="bPrint" type="button">⎙ Print / PDF</button>
+  <button class="act" id="bShare" type="button">⇪ Share</button>
+  <button class="act" id="bReset" type="button">↺ Reset parameters</button>
+</div>
+<div class="toast" id="toast"></div>
+
+<aside class="drawer" id="drawer">
+  <h3>Device references</h3>
+  <a href="HC20221214-Trilogy-Evo-Manual-Clinical-EN.pdf" target="_blank" rel="noopener">Trilogy Evo manual</a>
+  <a href="astral 150 manual.pdf" target="_blank" rel="noopener">Astral 150 manual</a>
+  <a href="astral 100 manual.pdf" target="_blank" rel="noopener">Astral 100 manual</a>
+  <a href="luisa manual.pdf" target="_blank" rel="noopener">Luisa manual</a>
+  <a href="vivo 45 LS manual.pdf" target="_blank" rel="noopener">Vivo 45 LS manual</a>
+  <a href="vocsn manual.pdf" target="_blank" rel="noopener">VOCSN manual</a>
+  <a href="PB 980 manual.pdf" target="_blank" rel="noopener">PB 980 manual</a>
+  <div class="spacer"></div>
+  <button class="chip-btn" id="drawerClose" type="button">Close</button>
+</aside>
+
+<script>
+  const APP_VERSION = 'r1';
+
+  const canonicalSettings = {
+    modeIntent:     { label: 'Universal Mode Intent' },
+    epap:           { label: 'EPAP / PEEP',                   unit: 'cmH₂O' },
+    ipap:           { label: 'IPAP (Total Insp. Pressure)',   unit: 'cmH₂O' },
+    pressureSupport:{ label: 'Pressure Support over EPAP',    unit: 'cmH₂O' },
+    targetVt:       { label: 'Target Tidal Volume',            unit: 'mL' },
+    targetVa:       { label: 'Target Alveolar Ventilation',    unit: 'L/min' },
+    rr:             { label: 'Backup / Mandatory Rate',        unit: 'bpm' },
+    ti:             { label: 'Inspiratory Time',               unit: 's' },
+    tiMin:          { label: 'Ti Min',                         unit: 's' },
+    tiMax:          { label: 'Ti Max',                         unit: 's' },
+    rise:           { label: 'Rise Time' },
+    triggerFlow:    { label: 'Trigger — Flow Sensitivity',     unit: 'L/min (universal)' },
+    triggerLocal:   { label: 'Trigger (local scale)' },
+    cyclePercent:   { label: 'Cycle Sensitivity',              unit: '% peak flow' },
+    autoEPAP:       { label: 'Auto-EPAP' },
+    epapMin:        { label: 'Min EPAP',                       unit: 'cmH₂O' },
+    epapMax:        { label: 'Max EPAP',                       unit: 'cmH₂O' },
+    psMin:          { label: 'Min PS',                         unit: 'cmH₂O' },
+    psMax:          { label: 'Max PS',                         unit: 'cmH₂O' },
+    ptHeight:       { label: 'Patient Height',                 unit: 'cm' },
+    leakComp:       { label: 'Leak Compensation' },
+    flowShape:      { label: 'Flow Shape' },
+    cpap:           { label: 'CPAP Pressure',             unit: 'cmH₂O' },
+    ipapMin:        { label: 'Min IPAP (total pressure)',      unit: 'cmH₂O' },
+    ipapMax:        { label: 'Max IPAP (total pressure)',      unit: 'cmH₂O' },
+    pcBreath:       { label: 'PC Breath (pressure-controlled backup)' },
+    pressureLimit:  { label: 'Pressure Limit (Auto-EPAP ceiling)', unit: 'cmH₂O' }
+  };
+
+  const VIVO52 = 'Vivo 45 LS US (SW 5.2.0)';
+
+  const deviceData = {
+    'Trilogy Evo': {
+      manufacturer: 'Philips Respironics', triggerType: 'autotrak',
+      modes: {
+        'PSV':            { intent:'Pressure Support', help:'Spontaneous pressure support.',
+                            settings:['epap','pressureSupport','tiMin','tiMax','rise','triggerFlow','cyclePercent'],
+                            defaults:{epap:5,pressureSupport:10,tiMin:0.5,tiMax:2.0,rise:3,triggerFlow:'Auto-Trak',cyclePercent:25} },
+        'S/T':            { intent:'BPAP-ST', help:'Bilevel spontaneous/timed.',
+                            settings:['epap','ipap','rr','tiMin','tiMax','rise','triggerFlow','cyclePercent'],
+                            defaults:{epap:5,ipap:15,rr:12,tiMin:0.5,tiMax:2.0,rise:3,triggerFlow:'Auto-Trak',cyclePercent:25} },
+        'AVAPS-AE':        { intent:'VAPS-ST', help:'S/T mode with AVAPS volume targeting. Auto EPAP On = AVAPS-AE (adaptive EPAP); Off = fixed EPAP with AVAPS. PC Breath = backup breath type.',
+                            settings:['epapMin','epapMax','psMin','psMax','targetVt','pcBreath','rr','ti','tiMin','tiMax','rise','triggerFlow'],
+                            defaults:{epapMin:4,epapMax:12,psMin:4,psMax:20,autoEPAP:'On',targetVt:500,pcBreath:'Off',rr:12,ti:1.0,tiMin:0.5,tiMax:2.0,rise:3,triggerFlow:'Auto-Trak'} },
+        'AC/PC':          { intent:'Pressure Control', help:'Assist/Control pressure control.',
+                            settings:['epap','ipap','rr','ti','rise','triggerFlow'],
+                            defaults:{epap:5,ipap:22,rr:14,ti:1.0,rise:3,triggerFlow:'Auto-Trak'} },
+        'AC/VC':          { intent:'Volume Control', help:'Assist/Control volume control.',
+                            settings:['epap','targetVt','rr','ti','triggerFlow','flowShape'],
+                            defaults:{epap:5,targetVt:500,rr:14,ti:1.0,triggerFlow:'Auto-Trak',flowShape:'Ramp'} },
+        'CPAP':           { intent:'CPAP', help:'CPAP.', settings:['cpap'], defaults:{cpap:8} }
+      },
+      localNames:{ epap:'EPAP/PEEP (cmH₂O)', ipap:'IPAP (cmH₂O)', pressureSupport:'Pressure Support (cmH₂O)', targetVt:'Target Vt (mL)', rr:'Backup Rate (bpm)', ti:'Inspiratory Time (s)', tiMin:'Ti Min (s)', tiMax:'Ti Max (s)', rise:'Rise Time (Level 0–6)', triggerFlow:'Auto-Trak / Flow Trigger', cyclePercent:'Cycle (% peak flow)', epapMin:'Min EPAP (cmH₂O)', epapMax:'Max EPAP (cmH₂O)', psMin:'Min PS (cmH₂O)', psMax:'Max PS (cmH₂O)', flowShape:'Flow Shape (Square / Ramp)', pcBreath:'PC Breath' },
+      settingOptions:{ pcBreath:['Off','On'], rise:[0,1,2,3,4,5,6], triggerFlow:['Auto-Trak','Auto-Trak Sensitive',0.5,1,2,3,4,5,6,7,8,9], cyclePercent:[5,10,15,20,25,30,40,50,60,70,80], flowShape:['Square','Ramp'] },
+      ranges:{ epap:{min:3,max:20,step:0.5}, ipap:{min:4,max:40,step:0.5}, pressureSupport:{min:0,max:35,step:0.5}, targetVt:{min:100,max:2000,step:10}, rr:{min:4,max:60,step:1}, ti:{min:0.1,max:4.0,step:0.1}, tiMin:{min:0.1,max:4.0,step:0.1}, tiMax:{min:0.3,max:4.0,step:0.1}, epapMin:{min:3,max:20,step:0.5}, epapMax:{min:3,max:20,step:0.5}, psMin:{min:0,max:35,step:0.5}, psMax:{min:4,max:40,step:0.5} }
+    },
+    'VOCSN': {
+      manufacturer: 'Ventec Life Systems', triggerType: 'flow',
+      modes: {
+        'Spontaneous':      { intent:'Pressure Support', help:'Spontaneous PS. IPAP is total pressure; PS = IPAP − PEEP.',
+                              settings:['epap','ipap','tiMax','rise','triggerFlow','cyclePercent','leakComp'],
+                              defaults:{epap:4,ipap:14,tiMax:2.0,rise:3,triggerFlow:2,cyclePercent:25,leakComp:'On'} },
+        'Bi-Level':         { intent:'BPAP-ST', help:'Bilevel S/T. EPAP and IPAP are total pressures.',
+                              settings:['epap','ipap','rr','ti','tiMax','rise','triggerFlow','cyclePercent','leakComp'],
+                              defaults:{epap:4,ipap:14,rr:12,ti:1.0,tiMax:2.0,rise:3,triggerFlow:2,cyclePercent:25,leakComp:'On'} },
+        'Vol. Targeted-PS': { intent:'VAPS-ST', help:'Volume-targeted PS. IntelliPAP™ = Auto-EPAP (enables Min/Max PEEP).',
+                              settings:['epap','autoEPAP','epapMin','epapMax','targetVt','psMin','psMax','rr','tiMax','rise','triggerFlow','cyclePercent','leakComp'],
+                              defaults:{epap:4,autoEPAP:'Off',epapMin:3,epapMax:10,targetVt:500,psMin:5,psMax:20,rr:12,tiMax:2.0,rise:3,triggerFlow:2,cyclePercent:25,leakComp:'On'} },
+        'Vol. Targeted-PC': { intent:'VAPS-PC', help:'Volume-targeted PC. IntelliPAP™ = Auto-EPAP.',
+                              settings:['epap','autoEPAP','epapMin','epapMax','targetVt','psMin','psMax','rr','ti','rise','triggerFlow','leakComp'],
+                              defaults:{epap:4,autoEPAP:'Off',epapMin:3,epapMax:10,targetVt:500,psMin:5,psMax:25,rr:14,ti:1.0,rise:3,triggerFlow:2,leakComp:'On'} },
+        'AC/PC':            { intent:'Pressure Control', help:'Assist-control pressure control. PC is set above PEEP.',
+                              settings:['epap','pressureSupport','rr','ti','rise','triggerFlow','leakComp'],
+                              defaults:{epap:4,pressureSupport:15,rr:14,ti:1.0,rise:3,triggerFlow:2,leakComp:'On'} },
+        'AC/VC':            { intent:'Volume Control', help:'Assist-control volume control.',
+                              settings:['epap','targetVt','rr','ti','triggerFlow','leakComp'],
+                              defaults:{epap:4,targetVt:500,rr:14,ti:1.0,triggerFlow:2,leakComp:'On'} },
+        'CPAP':             { intent:'CPAP', help:'⚠ VOCSN has no standalone CPAP. Achieved via SIMV-Pressure: Rate=0, PS=0, PEEP=target.',
+                              settings:['cpap','leakComp'], defaults:{cpap:8,leakComp:'On'} }
+      },
+      localNames:{ epap:'PEEP/EPAP (cmH₂O)', ipap:'IPAP (total, cmH₂O)', pressureSupport:'Pressure Control (above PEEP)', targetVt:'Tidal Volume (mL)', psMin:'Min PS above PEEP (cmH₂O)', psMax:'Max PS above PEEP (cmH₂O)', epapMin:'Min PEEP — IntelliPAP (cmH₂O)', epapMax:'Max PEEP — IntelliPAP (cmH₂O)', rr:'Breath Rate', ti:'Inspiratory Time (s)', tiMax:'Time Cycle / Ti Max (s)', rise:'Rise Time (1–6)', triggerFlow:'Flow Trigger (L/min)', cyclePercent:'Flow Cycle (%)', autoEPAP:'IntelliPAP™ (Auto-EPAP)', leakComp:'Leak Compensation' },
+      settingOptions:{ autoEPAP:['Off','On'], rise:[1,2,3,4,5,6], leakComp:['On','Off'] },
+      ranges:{ epap:{min:3,max:20,step:0.5}, ipap:{min:4,max:30,step:0.5}, pressureSupport:{min:0,max:25,step:0.5}, targetVt:{min:100,max:2000,step:10}, psMin:{min:0,max:25,step:0.5}, psMax:{min:2,max:30,step:0.5}, epapMin:{min:3,max:20,step:0.5}, epapMax:{min:3,max:20,step:0.5}, rr:{min:0,max:40,step:1}, ti:{min:0.3,max:3.0,step:0.1}, tiMax:{min:0.5,max:3.0,step:0.1}, rise:{min:1,max:6,step:1}, triggerFlow:{min:1,max:9,step:0.5}, cyclePercent:{min:10,max:90,step:5} }
+    },
+    'Vivo 45 LS / Nippy4+': {
+      manufacturer: 'Breas / B&D Electromedical', triggerType: 'scale19',
+      modes: {
+        'PSV':    { intent:'BPAP-ST', help:'Pressure support. autoEPAP toggle: On = Min/Max EPAP. tgV toggle: On = volume targeting + Min/Max PS. When used as Evo target source, Insp. Trigger translates as Off.',
+                    settings:['epap','autoEPAP','tgV','ipap','epapMin','epapMax','targetVt','psMin','psMax','rr','ti','tiMin','tiMax','rise','triggerLocal','cyclePercent'],
+                    defaults:{epap:5,autoEPAP:'Off',tgV:'Off',ipap:15,epapMin:4,epapMax:10,targetVt:500,psMin:10,psMax:25,rr:12,ti:1.5,tiMin:0.5,tiMax:2.0,rise:3,triggerLocal:3,cyclePercent:30} },
+        'S/T':    { intent:'BPAP-ST', help:'Spontaneous/Timed. On Breas, identical settings and ranges to PSV \u2014 mode name differs only. Use S/T when timed-backup context is preferred.',
+                    settings:['epap','autoEPAP','tgV','ipap','epapMin','epapMax','targetVt','psMin','psMax','rr','ti','tiMin','tiMax','rise','triggerLocal','cyclePercent'],
+                    defaults:{epap:5,autoEPAP:'Off',tgV:'Off',ipap:15,epapMin:4,epapMax:10,targetVt:500,psMin:10,psMax:25,rr:12,ti:1.5,tiMin:0.5,tiMax:2.0,rise:3,triggerLocal:3,cyclePercent:30} },
+        'PCV(A)': { intent:'Pressure Control', help:'Assisted pressure-controlled ventilation. Translates to Evo A/C-PC.',
+                    settings:['epap','autoEPAP','tgV','ipap','epapMin','epapMax','targetVt','psMin','psMax','rr','ti','rise','triggerLocal'],
+                    defaults:{epap:5,autoEPAP:'Off',tgV:'Off',ipap:15,epapMin:4,epapMax:10,targetVt:500,psMin:10,psMax:25,rr:12,ti:1.5,rise:3,triggerLocal:3} },
+        'VCV(A)': { intent:'Volume Control', help:'Volume-controlled ventilation.',
+                    settings:['epap','targetVt','rr','ti','triggerLocal','flowShape'],
+                    defaults:{epap:5,targetVt:500,rr:14,ti:1.5,triggerLocal:3,flowShape:'Square'} },
+        'CPAP':   { intent:'CPAP', help:'CPAP.', settings:['cpap'], defaults:{cpap:10} }
+      },
+      localNames:{ autoEPAP:'Auto EPAP toggle', tgV:'Target Volume (TgV) toggle', epap:'PEEP (cmH₂O)', epapMin:'Min EPAP (cmH₂O)', epapMax:'Max EPAP (cmH₂O)', ipap:'Insp. Pressure (cmH\u2082O)', psMin:'Min PS/IPAP (cmH₂O)', psMax:'Max PS/IPAP (cmH₂O)', pressureSupport:'PS over PEEP (derived)', targetVt:'Target Volume (mL)', rr:'Breath Rate', ti:'Insp. Time (s)', tiMin:'Min Insp. Time (s)', tiMax:'Max Insp. Time (s)', rise:'Rise Time (1–9)', triggerLocal:'Insp. Trigger (1=sensitive, Off=time)', cyclePercent:'Exp. Trigger (1–9 scale)', flowShape:'Flow Shape (Square / Decelerating)' },
+      settingOptions:{ autoEPAP:['Off','On'], tgV:['Off','On'], rise:[1,2,3,4,5,6,7,8,9], triggerLocal:['Off',1,2,3,4,5,6,7,8,9], cyclePercent:[1,2,3,4,5,6,7,8,9], flowShape:['Square','Decelerating'] },
+      ranges:{ epap:{min:2,max:20,step:0.5}, epapMin:{min:2,max:20,step:0.5}, epapMax:{min:2,max:20,step:0.5}, ipap:{min:4,max:50,step:0.5}, psMin:{min:4,max:50,step:0.5}, psMax:{min:4,max:50,step:0.5}, targetVt:{min:300,max:2000,step:10}, rr:{min:4,max:40,step:1}, ti:{min:0.3,max:5.0,step:0.1}, tiMin:{min:0.3,max:3.0,step:0.1}, tiMax:{min:0.3,max:5.0,step:0.1} }
+    },
+    [VIVO52]: {
+      manufacturer: 'Breas Medical',
+      triggerType: 'flow',
+      deviceNote: 'Software 5.2.0 (US, K232365).',
+      modes: {
+        'PSV':          { intent:'BPAP-ST', help:'Pressure support with backup rate. Insp. Pressure is total pressure (PEEP + PS).',
+                          settings:['epap','ipap','rr','ti','tiMin','tiMax','rise','triggerFlow','cyclePercent'],
+                          defaults:{epap:5,ipap:15,rr:12,ti:1.3,tiMin:0.5,tiMax:2.0,rise:3,triggerFlow:3,cyclePercent:30} },
+        'PSV(TgV)':     { intent:'VAPS-ST', help:'PSV with Target Volume (fixed PEEP). Pressure varies between Min and Max Pressure (total pressure).',
+                          settings:['epap','ipapMin','ipapMax','targetVt','rr','ti','tiMin','tiMax','rise','triggerFlow','cyclePercent'],
+                          defaults:{epap:5,ipapMin:10,ipapMax:25,targetVt:500,rr:12,ti:1.3,tiMin:0.5,tiMax:2.0,rise:3,triggerFlow:3,cyclePercent:30} },
+        'PSV(TgV)+AE':  { intent:'VAPS-ST', help:'PSV with Target Volume and Auto-EPAP. PC Breath = Yes gives a pressure-controlled backup breath (universal VAPS-PC). If Min PS = Max PS, volume targeting is inactive and PS is fixed (Auto-EPAP only).',
+                          settings:['epapMin','epapMax','psMin','psMax','targetVt','pcBreath','pressureLimit','rr','ti','tiMin','tiMax','rise','triggerFlow','cyclePercent'],
+                          defaults:{autoEPAP:'On',epapMin:4,epapMax:10,psMin:10,psMax:25,targetVt:500,pcBreath:'No',pressureLimit:40,rr:12,ti:1.3,tiMin:0.5,tiMax:2.0,rise:3,triggerFlow:3,cyclePercent:30} },
+        'PCV(A)':       { intent:'Pressure Control', help:'Assisted pressure-controlled ventilation.',
+                          settings:['epap','ipap','rr','ti','rise','triggerFlow'],
+                          defaults:{epap:5,ipap:15,rr:12,ti:1.5,rise:3,triggerFlow:3} },
+        'PCV(A+TgV)':   { intent:'VAPS-PC', help:'Assisted pressure control with Target Volume. Pressure varies between Min and Max Pressure (total pressure).',
+                          settings:['epap','ipapMin','ipapMax','targetVt','rr','ti','rise','triggerFlow'],
+                          defaults:{epap:5,ipapMin:10,ipapMax:25,targetVt:500,rr:12,ti:1.5,rise:3,triggerFlow:3} },
+        'VCV(A)':       { intent:'Volume Control', help:'Volume-controlled ventilation.',
+                          settings:['epap','targetVt','rr','ti','triggerFlow','flowShape'],
+                          defaults:{epap:5,targetVt:500,rr:14,ti:1.5,triggerFlow:3,flowShape:'Square'} },
+        'CPAP':         { intent:'CPAP', help:'CPAP.', settings:['cpap'], defaults:{cpap:10} }
+      },
+      localNames:{ epap:'PEEP (cmH₂O)', ipap:'Insp. Pressure (cmH₂O)', ipapMin:'Min Pressure (cmH₂O)', ipapMax:'Max Pressure (cmH₂O)', epapMin:'Min EPAP (cmH₂O)', epapMax:'Max EPAP (cmH₂O)', psMin:'Min PS (cmH₂O)', psMax:'Max PS (cmH₂O)', targetVt:'Target Volume (mL)', pcBreath:'PC Breath', pressureLimit:'Pressure Limit (cmH₂O)', rr:'Backup / Breath Rate (bpm)', ti:'Insp. Time (s)', tiMin:'Min Insp. Time (s)', tiMax:'Max Insp. Time (s)', rise:'Rise Time (1–9)', triggerFlow:'Flow Trigger (L/min, 1–9)', cyclePercent:'Exp. Trigger (% peak flow)', flowShape:'Flow Shape (Square / Decelerating)', cpap:'CPAP (cmH₂O)' },
+      settingOptions:{ pcBreath:['No','Yes'], rise:[1,2,3,4,5,6,7,8,9], triggerFlow:['Off',1,2,3,4,5,6,7,8,9], cyclePercent:[10,20,30,40,50,60,70,80,90], flowShape:['Square','Decelerating'] },
+      ranges:{ epap:{min:2,max:20,step:0.5}, cpap:{min:2,max:20,step:0.5}, epapMin:{min:2,max:20,step:0.5}, epapMax:{min:2,max:20,step:0.5}, ipap:{min:4,max:50,step:0.5}, ipapMin:{min:4,max:50,step:0.5}, ipapMax:{min:4,max:50,step:0.5}, psMin:{min:2,max:48,step:0.5}, psMax:{min:2,max:48,step:0.5}, pressureLimit:{min:4,max:50,step:0.5}, targetVt:{min:300,max:2000,step:10}, rr:{min:4,max:40,step:1}, ti:{min:0.3,max:5.0,step:0.1}, tiMin:{min:0.3,max:3.0,step:0.1}, tiMax:{min:0.3,max:5.0,step:0.1} }
+    },
+    'Astral 100': {
+      manufacturer: 'ResMed', triggerType: 'verbal',
+      modes: {
+        'S/T':  { intent:'BPAP-ST', help:'Bilevel spontaneous/timed.',
+                  settings:['epap','ipap','rr','tiMin','tiMax','rise','triggerMode','triggerLocal','triggerFlow','cyclePercent'],
+                  defaults:{epap:5,ipap:15,rr:12,tiMin:0.5,tiMax:1.5,rise:200,triggerMode:'Vsync',triggerLocal:'Medium',triggerFlow:1,cyclePercent:25} },
+        'iVAPS':{ intent:'VAPS-Alveolar', help:'Alveolar ventilation targeting.',
+                  settings:['targetVa','rr','ptHeight','epap','psMin','psMax','rise','tiMin','tiMax','triggerMode','triggerLocal','triggerFlow','cyclePercent'],
+                  defaults:{targetVa:5.2,rr:15,ptHeight:175,epap:5,psMin:2,psMax:20,rise:200,tiMin:0.5,tiMax:1.5,triggerMode:'Vsync',triggerLocal:'Medium',triggerFlow:1,cyclePercent:25} },
+        'PS':   { intent:'Pressure Support', help:'Pressure support spontaneous.',
+                  settings:['epap','pressureSupport','tiMin','tiMax','rise','triggerMode','triggerLocal','triggerFlow','cyclePercent'],
+                  defaults:{epap:5,pressureSupport:10,tiMin:0.5,tiMax:1.5,rise:200,triggerMode:'Vsync',triggerLocal:'Medium',triggerFlow:1,cyclePercent:25} },
+        'AC/PC':{ intent:'Pressure Control', help:'Assisted/controlled pressure control. Single-limb with leak circuit only.',
+                  settings:['epap','ipap','rr','ti','rise','triggerMode','triggerLocal','triggerFlow'],
+                  defaults:{epap:5,ipap:22,rr:14,ti:1.0,rise:200,triggerMode:'Vsync',triggerLocal:'Medium',triggerFlow:1} },
+        'CPAP': { intent:'CPAP', help:'CPAP.', settings:['cpap'], defaults:{cpap:8} }
+      },
+      localNames:{ epap:'EPAP (cmH₂O)', ipap:'IPAP (cmH₂O)', pressureSupport:'Pressure Support over EPAP', targetVt:'Safety Vt', targetVa:'Target Va (L/min)', rr:'Target Pt Rate', ptHeight:'Pt Height (cm)', psMin:'Min PS (cmH₂O)', psMax:'Max PS (cmH₂O)', ti:'Inspiratory Time (sec)', tiMin:'Ti Min (sec)', tiMax:'Ti Max (sec)', rise:'Rise Time (msec)', triggerMode:'Trigger Type', triggerLocal:'Vsync Sensitivity', triggerFlow:'Flow Trigger (L/min)', cyclePercent:'Cycle (%)' },
+      settingOptions:{ triggerMode:['Vsync','Flow'], triggerLocal:['Very High','High','Medium','Low','Very Low'] },
+      ranges:{ epap:{min:2,max:25,step:0.5}, ipap:{min:4,max:30,step:0.5}, pressureSupport:{min:0,max:25,step:0.5}, targetVt:{min:100,max:2000,step:10}, targetVa:{min:1,max:30,step:0.1}, rr:{min:1,max:60,step:1}, ptHeight:{min:110,max:250,step:1}, psMin:{min:0,max:50,step:0.5}, psMax:{min:0,max:50,step:0.5}, rise:{min:150,max:900,step:50}, ti:{min:0.1,max:4.0,step:0.1}, tiMin:{min:0.1,max:4.0,step:0.1}, tiMax:{min:0.3,max:4.0,step:0.1}, cyclePercent:{min:5,max:90,step:5}, triggerFlow:{min:0.5,max:15,step:0.5} }
+    },
+    'Astral 150': {
+      manufacturer: 'ResMed', triggerType: 'verbal',
+      modes: {
+        'S/T':     { intent:'BPAP-ST', help:'Bilevel spontaneous/timed.',
+                     settings:['epap','ipap','rr','tiMin','tiMax','rise','triggerMode','triggerLocal','triggerFlow','cyclePercent'],
+                     defaults:{epap:5,ipap:15,rr:12,tiMin:0.5,tiMax:1.5,rise:200,triggerMode:'Vsync',triggerLocal:'Medium',triggerFlow:1,cyclePercent:25} },
+        'iVAPS-AE':{ intent:'VAPS-Alveolar', help:'Alveolar ventilation targeting with AutoEPAP.',
+                     settings:['targetVa','rr','ptHeight','epap','autoEPAP','epapMin','epapMax','psMin','psMax','rise','tiMin','tiMax','triggerMode','triggerLocal','triggerFlow','cyclePercent'],
+                     defaults:{targetVa:5.2,rr:15,ptHeight:175,epap:5,autoEPAP:'On',epapMin:5,epapMax:15,psMin:2,psMax:20,rise:200,tiMin:0.5,tiMax:1.5,triggerMode:'Vsync',triggerLocal:'Medium',triggerFlow:1,cyclePercent:25} },
+        'PS':      { intent:'Pressure Support', help:'Pressure support spontaneous.',
+                     settings:['epap','pressureSupport','tiMin','tiMax','rise','triggerMode','triggerLocal','triggerFlow','cyclePercent'],
+                     defaults:{epap:5,pressureSupport:10,tiMin:0.5,tiMax:1.5,rise:200,triggerMode:'Vsync',triggerLocal:'Medium',triggerFlow:1,cyclePercent:25} },
+        'AC/PC':   { intent:'Pressure Control', help:'Assisted/controlled pressure control.',
+                     settings:['epap','ipap','rr','ti','rise','triggerMode','triggerLocal','triggerFlow'],
+                     defaults:{epap:5,ipap:22,rr:14,ti:1.0,rise:200,triggerMode:'Vsync',triggerLocal:'Medium',triggerFlow:1} },
+        'CPAP':    { intent:'CPAP', help:'CPAP.', settings:['cpap'], defaults:{cpap:8} }
+      },
+      localNames:{ epap:'EPAP (cmH₂O)', ipap:'IPAP (cmH₂O)', pressureSupport:'Pressure Support over EPAP', targetVt:'Safety Vt', targetVa:'Target Va (L/min)', rr:'Target Pt Rate', ptHeight:'Pt Height (cm)', epapMin:'Min EPAP — AutoEPAP ON', epapMax:'Max EPAP — AutoEPAP ON', psMin:'Min PS (cmH₂O)', psMax:'Max PS (cmH₂O)', ti:'Inspiratory Time (sec)', tiMin:'Ti Min (sec)', tiMax:'Ti Max (sec)', rise:'Rise Time (msec)', triggerMode:'Trigger Type', triggerLocal:'Vsync Sensitivity', triggerFlow:'Flow Trigger (L/min)', cyclePercent:'Cycle (%)', autoEPAP:'AutoEPAP' },
+      settingOptions:{ triggerMode:['Vsync','Flow'], triggerLocal:['Very High','High','Medium','Low','Very Low'], autoEPAP:['On','Off'] },
+      ranges:{ epap:{min:2,max:25,step:0.5}, ipap:{min:4,max:40,step:0.5}, pressureSupport:{min:0,max:35,step:0.5}, targetVt:{min:100,max:2000,step:10}, targetVa:{min:1,max:30,step:0.1}, rr:{min:1,max:60,step:1}, ptHeight:{min:110,max:250,step:1}, epapMin:{min:2,max:25,step:0.5}, epapMax:{min:2,max:25,step:0.5}, psMin:{min:0,max:50,step:0.5}, psMax:{min:8,max:50,step:0.5}, rise:{min:150,max:900,step:50}, ti:{min:0.1,max:4.0,step:0.1}, tiMin:{min:0.1,max:4.0,step:0.1}, tiMax:{min:0.3,max:4.0,step:0.1}, cyclePercent:{min:5,max:90,step:5}, triggerFlow:{min:0.5,max:15,step:0.5} }
+    },
+    'Luisa': {
+      manufacturer: 'Löwenstein', triggerType: 'auto_or_scale',
+      modes: {
+        'S/T':        { intent:'BPAP-ST', help:'Bilevel S/T.',
+                        settings:['epap','ipap','rr','ti','tiMin','tiMax','rise','triggerLocal','cyclePercent'],
+                        defaults:{epap:5,ipap:15,rr:12,ti:'Auto',tiMin:0.5,tiMax:2.0,rise:2,triggerLocal:'Auto',cyclePercent:25} },
+        'TTV':        { intent:'VAPS-ST', help:'Targeted tidal volume VAPS (fixed EPAP).',
+                        settings:['epap','ipapMin','ipapMax','targetVt','rr','ti','tiMin','tiMax','rise','triggerLocal','cyclePercent'],
+                        defaults:{epap:5,ipapMin:8,ipapMax:20,targetVt:500,rr:'Auto',ti:'Auto',tiMin:0.5,tiMax:2.0,rise:2,triggerLocal:'Auto',cyclePercent:25} },
+        'TTV-AE':     { intent:'VAPS-ST', help:'Targeted tidal volume VAPS with Auto-EPAP.',
+                        settings:['epapMin','epapMax','psMin','psMax','targetVt','rr','ti','tiMin','tiMax','rise','triggerLocal','cyclePercent'],
+                        defaults:{epapMin:4,epapMax:12,psMin:4,psMax:15,targetVt:500,rr:'Auto',ti:'Auto',tiMin:0.5,tiMax:2.0,rise:2,triggerLocal:'Auto',cyclePercent:25,autoEPAP:'On'} },
+        'PC-AC':      { intent:'Pressure Control', help:'Pressure-controlled assist/control.',
+                        settings:['epap','pressureSupport','rr','ti','rise','triggerLocal'],
+                        defaults:{epap:5,pressureSupport:18,rr:14,ti:1.0,rise:2,triggerLocal:'Auto'} },
+        'VC-AC':      { intent:'Volume Control', help:'Volume-controlled assist/control.',
+                        settings:['epap','targetVt','rr','ti','triggerLocal'],
+                        defaults:{epap:5,targetVt:500,rr:14,ti:1.0,triggerLocal:'Auto'} },
+        'CPAP':       { intent:'CPAP', help:'CPAP.', settings:['cpap'], defaults:{cpap:8} }
+      },
+      localNames:{ epap:'EPAP', ipap:'IPAP', epapMin:'Min EPAP (Auto-EPAP)', epapMax:'Max EPAP (Auto-EPAP)', ipapMin:'IPAP Min', ipapMax:'IPAP Max', psMin:'PS Min (above EPAP)', psMax:'PS Max (above EPAP)', pressureSupport:'Pressure Support (above EPAP)', targetVt:'Target Tidal Volume', rr:'Rate (or Auto)', ti:'Ti (or Auto)', tiMin:'Ti Min', tiMax:'Ti Max', rise:'Rise Time (1–4)', triggerLocal:'Trigger (Auto or 1–10)', cyclePercent:'Expiratory Trigger (%)' },
+      settingOptions:{ rise:[1,2,3,4], triggerLocal:['Auto',1,2,3,4,5,6,7,8,9,10] },
+      ranges:{ epap:{min:4,max:25,step:0.2}, ipap:{min:4,max:50,step:0.2}, epapMin:{min:4,max:25,step:0.2}, epapMax:{min:4,max:25,step:0.2}, ipapMin:{min:4,max:50,step:0.2}, ipapMax:{min:4,max:50,step:0.2}, psMin:{min:2,max:46,step:0.2}, psMax:{min:2,max:46,step:0.2}, pressureSupport:{min:0,max:30,step:0.2}, targetVt:{min:100,max:3000,step:10}, rr:{min:2,max:60,step:0.5}, ti:{min:0.3,max:3.0,step:0.1}, tiMin:{min:0.3,max:2.0,step:0.1}, tiMax:{min:0.5,max:3.0,step:0.1}, cyclePercent:{min:5,max:80,step:5} }
+    },
+  };
+
+  const EVO_RISE_MS   = [50, 100, 200, 300, 400, 500, 600];
+  const EVO_FLOW_OPTS = [0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+  const EVO_RANGES = {
+    epap:{min:3,max:20,label:'EPAP/PEEP'}, ipap:{min:4,max:40,label:'IPAP'},
+    pressureSupport:{min:0,max:35,label:'Pressure Support'}, targetVt:{min:50,max:2000,label:'Target Vt'},
+    rr:{min:4,max:60,label:'Backup Rate'}, ti:{min:0.3,max:4.0,label:'Ti'},
+    tiMin:{min:0.3,max:3.0,label:'Ti Min'}, tiMax:{min:0.3,max:3.0,label:'Ti Max'},
+    epapMin:{min:3,max:20,label:'Min EPAP'}, epapMax:{min:3,max:20,label:'Max EPAP'},
+    psMin:{min:0,max:35,label:'Min PS'}, psMax:{min:4,max:40,label:'Max PS'},
+    ipapMin:{min:4,max:40,label:'IPAP Min'}, ipapMax:{min:4,max:40,label:'IPAP Max'},
+  };
+  const TARGET_DEVICES = Object.keys(deviceData);
+
+  let state = { sourceDevice:'Astral 150', sourceMode:'iVAPS-AE', targetDevice:'Trilogy Evo', values:{} };
+  let editingKey = null;
+
+  function localName(dev, key) {
+    if (dev === 'Vivo 45 LS / Nippy4+' && key === 'ipap') {
+      const aeOn = !String(state.values.autoEPAP ?? 'Off').toLowerCase().includes('off');
+      if (aeOn) return 'Pressure Support';
+    }
+    return deviceData[dev].localNames[key] || canonicalSettings[key]?.label || key;
+  }
+  function unitOf(key) { return canonicalSettings[key]?.unit ? ` ${canonicalSettings[key].unit}` : ''; }
+  function canonLabel(key) {
+    if (state.sourceDevice === 'Vivo 45 LS / Nippy4+' && key === 'ipap') {
+      const aeOn = !String(state.values.autoEPAP ?? 'Off').toLowerCase().includes('off');
+      if (aeOn) return 'Pressure Support (above EPAP)';
+    }
+    return canonicalSettings[key]?.label || key;
+  }
+
+  function visibleSettingKeys(cfg) {
+    const isAstralSrc = state.sourceDevice==='Astral 100'||state.sourceDevice==='Astral 150';
+    const astralTMode = state.values.triggerMode??'Vsync';
+    return cfg.settings.filter(key=>{
+      if(isAstralSrc && key==='triggerFlow') return astralTMode==='Flow';
+      if(isAstralSrc && key==='triggerLocal') return astralTMode==='Vsync';
+      if(cfg.settings.includes('epap')&&cfg.settings.includes('epapMin')&&cfg.settings.includes('autoEPAP')){
+        const aeOn=!String(state.values.autoEPAP??'Off').toLowerCase().includes('off');
+        if(key==='epap'&&aeOn) return false;
+        if((key==='epapMin'||key==='epapMax')&&!aeOn) return false;
+      }
+      if(state.sourceDevice==='Vivo 45 LS / Nippy4+'&&
+         (state.sourceMode==='PSV'||state.sourceMode==='S/T'||state.sourceMode==='PCV(A)')){
+        const tgvOn=String(state.values.tgV??'Off').toLowerCase()==='on';
+        if(key==='ipap'&&tgvOn) return false;
+        if((key==='psMin'||key==='psMax'||key==='targetVt')&&!tgvOn) return false;
+      }
+      const pcOn=['on','yes'].includes(String(state.values.pcBreath??'').toLowerCase());
+      const srcPC=isPCIntent(cfg.intent)||pcOn;
+      if(srcPC&&(key==='tiMin'||key==='tiMax')) return false;
+      if(state.sourceDevice==='Trilogy Evo'&&state.sourceMode==='AVAPS-AE'&&key==='ti'&&!pcOn) return false;
+      return true;
+    });
+  }
+
+  function toUniversalTriggerLPM(src, raw) {
+    const t = String(raw).toLowerCase().trim();
+    if (t === 'off') return 'Off';
+    if (t.includes('sensitive')) return 2;                     // Auto-Trak Sensitive
+    if (t === 'auto-trak' || t === 'auto-trak') return 4;      // Auto-Trak
+    if (t.includes('auto') && !t.includes('epap')) return (src==='Luisa') ? 3 : 4; // Luisa Auto≈3 LPM
+    if (t === 'very high') return 1;   // Astral — user may correct
+    if (t === 'high')      return 2;   // Astral
+    if (t === 'medium')    return 3;   // Astral
+    if (t === 'low')       return 5;   // Astral
+    if (t === 'very low')  return 7;   // Astral
+    if (src === 'Luisa') {             // Luisa 1–10 scale (1=most sensitive); cap at 9 L/min (max Evo/common max)
+      const n = Number(raw);
+      if (!isNaN(n)) return Math.min(n, 9);
+    }
+    if (src === 'Vivo 45 LS') {        // Vivo 1–9 scale (1=most sensitive) — approx LPM
+      const n = Number(raw);
+      if (!isNaN(n)) { const m={1:1,2:1.5,3:2,4:3,5:3.5,6:4,7:5,8:6,9:7}; return m[Math.round(n)]??3; }
+    }
+    const n = Number(raw);
+    if (!isNaN(n)) return n;           // Already LPM (VOCSN, PB980, EVO flow)
+    return 3;
+  }
+
+  function isPCIntent(intent) { return intent==='Pressure Control' || intent==='VAPS-PC'; }
+  function applyPCTiRule(o) {  // o: object with ti / tiMin / tiMax; returns note text or null
+    let note = null;
+    const hasTi = o.ti != null && o.ti !== '' && !String(o.ti).toLowerCase().includes('auto');
+    if (!hasTi && (o.tiMax != null || o.tiMin != null)) {
+      const f = o.tiMax != null ? o.tiMax : o.tiMin;
+      if (!isNaN(Number(f))) { o.ti = Number(f); note = `Pressure control uses a set Insp. Time; source Ti Max ${f} s used as Ti. Verify clinically.`; }
+    }
+    delete o.tiMin; delete o.tiMax;
+    return note;
+  }
+
+  function getUniversal() {
+    const cfg = deviceData[state.sourceDevice].modes[state.sourceMode];
+    const u = { modeIntent: cfg.intent, ...state.values };
+    const autoEpapOn = u.autoEPAP && !String(u.autoEPAP).toLowerCase().includes('off');
+    if (autoEpapOn && cfg.settings.includes('epapMin')) delete u.epap;
+    if (autoEpapOn && state.sourceDevice === 'Vivo 45 LS / Nippy4+' && u.ipap != null && u.pressureSupport == null) {
+      u.pressureSupport = u.ipap;
+      delete u.ipap;
+    }
+    if (state.sourceDevice === 'Trilogy Evo' && state.sourceMode === 'AVAPS-AE') {
+      if (String(u.pcBreath).toLowerCase() === 'on') u.modeIntent = 'VAPS-PC';
+      else delete u.ti;            // Ti is only used with PC Breath On; otherwise Ti Min/Max apply
+      delete u.pcBreath;
+    }
+    if (state.sourceDevice === VIVO52) {
+      if ((state.sourceMode==='PSV(TgV)' || state.sourceMode==='PCV(A+TgV)') && u.epap != null) {
+        if (u.ipapMin != null) u.psMin = Number(u.ipapMin) - Number(u.epap);
+        if (u.ipapMax != null) u.psMax = Number(u.ipapMax) - Number(u.epap);
+      }
+      if (state.sourceMode === 'PSV(TgV)+AE') {
+        const pc = String(u.pcBreath).toLowerCase() === 'yes';
+        if (pc) u.modeIntent = 'VAPS-PC';
+        if (u.psMin != null && Number(u.psMin) === Number(u.psMax)) {
+          u.pressureSupport = Number(u.psMin);
+          delete u.targetVt;
+          if (!pc) { u.modeIntent = 'BPAP-ST'; u.tgV = 'Off'; delete u.psMin; delete u.psMax; }
+          u._srcNote = `Source Min PS = Max PS (${u.pressureSupport} cmH₂O): volume targeting inactive → translated as Auto-EPAP with fixed PS${pc?' and PC Breath':''}.`;
+        }
+        delete u.pcBreath; delete u.pressureLimit;
+      }
+    }
+    const ep = Number(u.epap), ip = Number(u.ipap), ps = Number(u.pressureSupport);
+    if (!u.pressureSupport && ip && ep) u.pressureSupport = ip - ep;
+    if (!u.ipap && ps && ep) u.ipap = ps + ep;
+    if (u.modeIntent === 'BPAP-ST' && u.avaps && !String(u.avaps).toLowerCase().includes('off')) {
+      u.modeIntent = 'VAPS-ST';
+    }
+    if (u.targetVa != null && !u.targetVt) {
+      const vv = calcAvapsVt(u.targetVa, u.rr, u.ptHeight);
+      u.targetVt = vv.vt;
+      u._iVAPSnote = `Vt calculated from iVAPS: Va ${u.targetVa} L/min ÷ rate ${u.rr??15} bpm = alveolar Vt ${vv.alveolarVt} mL + dead space ${vv.deadspace} mL (ht ${vv.height} cm) = ${vv.vt} mL`;
+      delete u.targetVa;
+      delete u.ptHeight;
+      if (u.modeIntent === 'VAPS-Alveolar') u.modeIntent = 'VAPS-ST';
+    }
+    if (isPCIntent(u.modeIntent)) {
+      const tn = applyPCTiRule(u);
+      if (tn) u._srcNote = (u._srcNote ? u._srcNote + ' ' : '') + tn;
+    }
+    const isAstral = state.sourceDevice==='Astral 100'||state.sourceDevice==='Astral 150';
+    const rawTrig = isAstral && u.triggerMode
+      ? (u.triggerMode==='Flow' ? u.triggerFlow : u.triggerLocal)
+      : (u.triggerFlow ?? u.triggerLocal);
+    if (rawTrig != null) {
+      u.triggerFlow = toUniversalTriggerLPM(state.sourceDevice, rawTrig);
+      delete u.triggerLocal;
+    }
+    return u;
+  }
+
+  function triggerToEvo(src, rawTrigger, forceFlow=false) {
+    const t = String(rawTrigger).toLowerCase().trim();
+    if (t === 'off') return { setting:'Off — time-triggered only', type:'off', note:'Trigger set to Off — ventilator is time-triggered only.' };
+    if (t.includes('sensitive')) return { setting:'Auto-Trak Sensitive', type:'autotrak', note:'Auto-Trak Sensitive selected.' };
+    if (t === 'auto-trak' || (t.includes('auto') && !t.includes('epap'))) return { setting:'Auto-Trak', type:'autotrak', note:'Auto-Trak selected.' };
+    const n = Number(rawTrigger);
+    if (isNaN(n)) return { setting:'Auto-Trak', type:'autotrak', note:'Trigger not recognized; defaulting to Auto-Trak.' };
+    if (!forceFlow) {
+      if (n < 2)   return { setting:'Auto-Trak Sensitive', type:'autotrak', note:`Universal trigger ${n} L/min (<2 LPM) → Evo Auto-Trak Sensitive.` };
+      if (n <= 4)  return { setting:'Auto-Trak', type:'autotrak', note:`Universal trigger ${n} L/min (≤4 LPM) → Evo Auto-Trak.` };
+    }
+    const closest = EVO_FLOW_OPTS.reduce((b,v) => Math.abs(v-n)<Math.abs(b-n)?v:b, EVO_FLOW_OPTS[0]);
+    return { setting:`${closest} L/min flow trigger`, type:'flow', note:`Flow trigger ${n} L/min → Evo ${closest} L/min.` };
+  }
+
+  function riseToEvo(src, rawRise, patientType, ps) {
+    const n = Number(rawRise);
+    if ((src === 'Vivo 45 LS / Nippy4+' || src === VIVO52) && !isNaN(n) && n >= 1 && n <= 9) {
+      const evoLvl = Math.round((n - 1) * 6 / 8);
+      return { level:evoLvl, ms:EVO_RISE_MS[evoLvl], note:`Rise Time: ${src} Level ${n}/9 → Evo Level ${evoLvl} (${EVO_RISE_MS[evoLvl]} ms). Trilogy Evo targets ⅔ of PS duration; source targets ~90% PS.` };
+    }
+    if (src === 'Luisa' && !isNaN(n) && n >= 1 && n <= 4) {
+      const SPEEDS = { Adult:[100,80,50,20], Pediatric:[135,100,80,50] };
+      const ptype = String(patientType||'Adult').toLowerCase().includes('ped') ? 'Pediatric' : 'Adult';
+      const speedHpaS = SPEEDS[ptype][n-1];
+      const refPS = (ps != null && Number(ps) > 0) ? Number(ps) : 10;
+      const timeMs = Math.round((refPS * 2/3) / speedHpaS * 1000);
+      const idx = EVO_RISE_MS.reduce((bi,v,i)=>Math.abs(v-timeMs)<Math.abs(EVO_RISE_MS[bi]-timeMs)?i:bi,0);
+      return { level:idx, ms:EVO_RISE_MS[idx], note:`Rise Time: Luisa Level ${n} = ${speedHpaS} hPa/s (${ptype}). At PS ${refPS} cmH₂O, time to ⅔ PS ≈ ${timeMs} ms → Evo Level ${idx} (${EVO_RISE_MS[idx]} ms).` };
+    }
+    if (!isNaN(n) && n > 10) {
+      const half = n / 2;
+      const idx = EVO_RISE_MS.reduce((bi,v,i)=>Math.abs(v-half)<Math.abs(EVO_RISE_MS[bi]-half)?i:bi,0);
+      return { level:idx, ms:EVO_RISE_MS[idx], note:`Rise Time: Evo level ${idx} (${EVO_RISE_MS[idx]} ms). Trilogy Evo targets ⅔ of PS duration; source device targets ~90% PS.` };
+    }
+    if (src === 'VOCSN' && !isNaN(n)) {
+      const lvl = Math.min(6, Math.max(0, Math.round(n)));
+      const vocsn_ms = EVO_RISE_MS[lvl];
+      const half = vocsn_ms / 2;
+      const idx = EVO_RISE_MS.reduce((bi,v,i)=>Math.abs(v-half)<Math.abs(EVO_RISE_MS[bi]-half)?i:bi,0);
+      return { level:idx, ms:EVO_RISE_MS[idx], note:`Rise Time: VOCSN Level ${lvl} (≊${vocsn_ms} ms, 90% PS target) → halved → Evo Level ${idx} (${EVO_RISE_MS[idx]} ms, ⅔ PS target).` };
+    }
+    if (!isNaN(n) && n <= 6) {
+      const lvl = Math.min(6, Math.max(0, Math.round(n)));
+      return { level:lvl, ms:EVO_RISE_MS[lvl], note:`Rise Time: Evo level ${lvl} (${EVO_RISE_MS[lvl]} ms). Trilogy Evo targets ⅔ of PS duration; source device targets ~90% PS.` };
+    }
+    return { level:3, ms:300, note:'Rise time not recognized; defaulted to Evo level 3 (300 ms). Verify clinically.' };
+  }
+
+  function calcAvapsVt(targetVa, rr, height) {
+    const h=Number(height)||175, r=Number(rr)||15, v=Number(targetVa)||5;
+    const ds=Math.round(120*Math.pow(h/175,2.363));
+    const aVt=Math.round((v*1000)/r);
+    return { vt:Math.round((aVt+ds)/5)*5, alveolarVt:aVt, deadspace:ds, height:h };
+  }
+
+  function selectEvoMode(u) {
+    const intent=u.modeIntent, hasAE=u.autoEPAP&&!String(u.autoEPAP).toLowerCase().includes('off');
+    if (intent==='VAPS-ST' && state.sourceDevice==='VOCSN' && state.sourceMode==='Vol. Targeted-PS') {
+      if (hasAE) return {mode:'AVAPS-AE',pcBreath:false,note:'VOCSN Vol. Targeted-PS + IntelliPAP On → Evo AVAPS-AE, PC Breath Off.'};
+      return {mode:'PSV',avaps:true,pcBreath:null,note:'VOCSN Vol. Targeted-PS + IntelliPAP Off → Evo PSV with AVAPS On (fixed EPAP, volume targeting).'};
+    }
+    if ((intent==='VAPS-ST'||intent==='VAPS-Alveolar')&&hasAE) return {mode:'AVAPS-AE',pcBreath:false,note:'Source: VAPS + Auto-EPAP → Evo AVAPS-AE, PC Breath OFF.'};
+    if (intent==='VAPS-PC' && state.sourceDevice==='VOCSN' && state.sourceMode==='Vol. Targeted-PC') {
+      if (hasAE) return {mode:'AVAPS-AE',pcBreath:true,note:'VOCSN Vol. Targeted-PC + IntelliPAP On → Evo AVAPS-AE, PC Breath On.'};
+      return {mode:'AC/PC',avaps:true,pcBreath:null,note:'VOCSN Vol. Targeted-PC + IntelliPAP Off → Evo AC/PC with AVAPS On (fixed EPAP, volume targeting).'};
+    }
+    if (intent==='VAPS-PC'&&hasAE)                             return {mode:'AVAPS-AE',pcBreath:true, note:'Source: VAPS-PC + Auto-EPAP → Evo AVAPS-AE, PC Breath ON.'};
+    if (intent==='VAPS-ST'||intent==='VAPS-Alveolar') {
+      return {mode:'S/T',avaps:true,pcBreath:null,ipapBounds:false,note:'Source VAPS (no Auto-EPAP) → Evo S/T with AVAPS On (fixed EPAP, volume targeting).'};
+    }
+    if (intent==='VAPS-PC') return {mode:'S/T',avaps:true,pcBreath:null,ipapBounds:false,note:'VAPS-PC without Auto-EPAP → Evo S/T with AVAPS On (fixed EPAP, volume targeting).'};
+    if (intent==='BPAP-ST') {
+      const trigOff=String(u.triggerLocal??'').toLowerCase()==='off';
+      if (trigOff) return {mode:'AC/PC',pcBreath:null,note:'Trigger Off → time-triggered only → Evo AC/PC.'};
+      const tgvOn=(u.tgV&&!String(u.tgV).toLowerCase().includes('off'))||(u.avaps&&!String(u.avaps).toLowerCase().includes('off'));
+      if (hasAE&&tgvOn)  return {mode:'AVAPS-AE',pcBreath:false,note:'S/T + Auto-EPAP + TgV → Evo AVAPS-AE.'};
+      if (hasAE&&!tgvOn) return {mode:'AVAPS-AE',pcBreath:false,fixedPS:true,note:'S/T + Auto-EPAP (TgV Off) → Evo AVAPS-AE; PS Min = PS Max (fixed pressure, no volume targeting).'};
+      if (!hasAE&&tgvOn) return {mode:'S/T',avaps:true,pcBreath:null,ipapBounds:false,note:'S/T + TgV On, Auto-EPAP Off → Evo S/T with AVAPS On.'};
+      return {mode:'S/T',pcBreath:null};
+    }
+    if (intent==='Pressure Support') return {mode:'PSV',   pcBreath:null};
+    if (intent==='Pressure Control') return {mode:'AC/PC', pcBreath:null};
+    if (intent==='Volume Control')   return {mode:'AC/VC', pcBreath:null};
+    if (intent==='CPAP')             return {mode:'CPAP',  pcBreath:null};
+    return {mode:'S/T', pcBreath:null};
+  }
+
+  function derivePressures(u) {
+    const ep=Number(u.epap??u.cpap),ip=Number(u.ipap),ps=Number(u.pressureSupport),out={};
+    if(!isNaN(ep)) out.epap=ep;
+    if(!isNaN(ip)){out.ipap=ip;if(!isNaN(ep))out.pressureSupport=ip-ep;}
+    else if(!isNaN(ps)&&!isNaN(ep)){out.pressureSupport=ps;out.ipap=ps+ep;}
+    return out;
+  }
+
+  function clampVal(key, val, rangesObj) {
+    const r = rangesObj?.[key];
+    if (!r || val == null) return { val, clamped:false, warning:null };
+    const n = Number(val);
+    if (isNaN(n)) return { val, clamped:false, warning:null };
+    if (n < r.min) return { val:r.min, clamped:true, warning:`${r.label??key}: source value ${n} is below target minimum ${r.min}. Set to ${r.min}.` };
+    if (n > r.max) return { val:r.max, clamped:true, warning:`${r.label??key}: source value ${n} exceeds target maximum ${r.max}. Capped at ${r.max}.` };
+    return { val:n, clamped:false, warning:null };
+  }
+
+  function toEvoIntermediate(u) {
+    const modeInfo = selectEvoMode(u);
+    const pres = derivePressures(u);
+    const isAstral = state.sourceDevice==='Astral 100'||state.sourceDevice==='Astral 150';
+    const isAstralFlow = isAstral && u.triggerMode==='Flow';
+    const srcFlowTrig = deviceData[state.sourceDevice]?.triggerType==='flow' || isAstralFlow;
+    const trigRes = triggerToEvo(state.sourceDevice, u.triggerFlow??u.triggerLocal, srcFlowTrig);
+    const riseRes = riseToEvo(state.sourceDevice, u.rise, u.patientType, pres.pressureSupport);
+    const notes = [];
+    if (modeInfo.note) notes.push({type:'info', text:modeInfo.note});
+    if (trigRes.note)  notes.push({type:'info', text:trigRes.note});
+    if (riseRes.note)  notes.push({type:'info', text:riseRes.note});
+    if (u._iVAPSnote)  notes.push({type:'info', text:u._iVAPSnote, keep:true});
+    if (u._srcNote)    notes.push({type:'info', text:u._srcNote, keep:true});
+    const evo = { mode:modeInfo.mode, pcBreath:modeInfo.pcBreath, avaps:modeInfo.avaps||false, fixedPS:modeInfo.fixedPS||false, _notes:notes,
+                  riseLevel:riseRes.level, riseMs:riseRes.ms,
+                  triggerSetting:trigRes.setting, triggerType:trigRes.type,
+                  triggerLpm: trigRes.type==='flow' ? Number(String(trigRes.setting).split(' ')[0]) : (trigRes.type==='autotrak'?4:3),
+                  cyclePercent:u.cyclePercent };
+    if (modeInfo.mode==='AVAPS-AE') {
+      evo.epapMin = u.epapMin ?? pres.epap ?? 5;
+      evo.epapMax = u.epapMax ?? (pres.epap ?? 5) + 4;
+      if (modeInfo.fixedPS) {
+        const fixPs = u.pressureSupport ?? pres.pressureSupport ?? u.psMax ?? u.psMin ?? 10;
+        evo.psMin = fixPs; evo.psMax = fixPs;
+      } else {
+        evo.psMin = u.psMin ?? (pres.pressureSupport ? Math.max(0,pres.pressureSupport-2) : 2);
+        evo.psMax = u.psMax ?? (pres.pressureSupport ? pres.pressureSupport+4 : 20);
+      }
+    } else {
+      if (pres.epap != null) evo.epap = pres.epap;
+      if (pres.ipap != null) evo.ipap = pres.ipap;
+      if (pres.pressureSupport != null) evo.pressureSupport = pres.pressureSupport;
+      if (modeInfo.avaps) {
+        if (modeInfo.mode==='PSV' || modeInfo.mode==='AC/PC') {
+          evo.psMin = u.psMin!=null ? Number(u.psMin) : (pres.pressureSupport ? Math.max(0,pres.pressureSupport-2) : 2);
+          evo.psMax = u.psMax!=null ? Number(u.psMax) : (pres.pressureSupport ? Number(pres.pressureSupport)+4 : 20);
+        }
+        if (modeInfo.mode==='S/T') {
+          const epV=pres.epap??0;
+          const iMin=u.ipapMin!=null?Number(u.ipapMin):(u.psMin!=null?(modeInfo.ipapBounds?Number(u.psMin):epV+Number(u.psMin)):null);
+          const iMax=u.ipapMax!=null?Number(u.ipapMax):(u.psMax!=null?(modeInfo.ipapBounds?Number(u.psMax):epV+Number(u.psMax)):null);
+          if(iMin!=null) evo.ipapMin=iMin;
+          if(iMax!=null) evo.ipapMax=iMax;
+        }
+      }
+    }
+    if (u.targetVt != null) evo.targetVt = u.targetVt;
+    if (u.rr != null && !String(u.rr).toLowerCase().includes('auto')) evo.rr = Number(u.rr);
+    if (u.tiMin != null) evo.tiMin = u.tiMin;
+    if (u.tiMax != null) evo.tiMax = u.tiMax;
+    if (u.ti != null && !String(u.ti).toLowerCase().includes('auto')) evo.ti = u.ti;
+    if (u.flowShape != null) evo.flowShape = String(u.flowShape).toLowerCase()==='square' ? 'Square' : 'Ramp';
+    else if (modeInfo.mode === 'AC/VC') evo.flowShape = 'Ramp';
+    if (evo.mode==='AC/PC' || evo.pcBreath===true) {
+      const tn = applyPCTiRule(evo);   // PC breath / AC-PC: set Ti only
+      if (tn) notes.push({type:'info', text:tn});
+    }
+    return evo;
+  }
+
+  function evoRiseToDevice(evoLevel, evoMs, targetDev) {
+    if (targetDev === 'Trilogy Evo') return { val:evoLevel, note:null };
+    if (targetDev === 'Astral 100' || targetDev === 'Astral 150') {
+      const ms = Math.min(900, Math.max(150, Math.round(evoMs*2/50)*50));
+      return { val:ms, note:`Rise Time: ${state.sourceDevice} setting (≈${evoMs} ms to ⅔ PS) → Astral ${ms} ms (Astral targets ~90% PS, so time is doubled; range 150–900 ms).` };
+    }
+    if (targetDev === 'Vivo 45 LS / Nippy4+' || targetDev === VIVO52) {
+      const v = Math.min(9, Math.max(1, Math.round(evoLevel*8/6+1)));
+      return { val:v, note:`Rise Time: ${state.sourceDevice} setting (≈${evoMs} ms to ⅔ PS) → Vivo level ${v}/9 (linear scale of 1–9).` };
+    }
+    if (targetDev === 'Luisa') {
+      const v = Math.min(4, Math.max(1, Math.round(evoLevel/2+1)));
+      return { val:v, note:`Rise Time: ${state.sourceDevice} setting (≈${evoMs} ms to ⅔ PS) → Luisa Level ${v}/4 (nearest of 4 speed levels). Verify clinically.` };
+    }
+    if (targetDev === 'VOCSN') {
+      const doubled = evoMs * 2;
+      const idx = EVO_RISE_MS.reduce((bi,v,i)=>Math.abs(v-doubled)<Math.abs(EVO_RISE_MS[bi]-doubled)?i:bi,0);
+      return { val:idx, note:`Rise Time: ${state.sourceDevice} setting (≈${evoMs} ms to ⅔ PS) → doubled → VOCSN Level ${idx} (≊${EVO_RISE_MS[idx]} ms, 90% PS target).` };
+    }
+    return { val:evoMs, note:null };
+  }
+
+  function evoTriggerToDevice(trigSetting, trigLpm, targetDev) {
+    const s = String(trigSetting).toLowerCase();
+    const isSensitive = s.includes('sensitive');
+    const isAutoTrak  = !isSensitive && (s.includes('auto') || s.includes('trak'));
+    const lpm = trigLpm ?? (isSensitive ? 2 : isAutoTrak ? 4 : Number(trigSetting) || 3);
+    if (targetDev === 'Trilogy Evo') return { val:trigSetting, trigMode:null, note:null };
+    if (targetDev === 'Astral 100' || targetDev === 'Astral 150') {
+      if (isSensitive) return { val:'Very High', trigMode:'Vsync', note:`Trigger: sensitive trigger (<2 L/min) → Astral Vsync Very High.` };
+      if (isAutoTrak)  return { val:'Medium',    trigMode:'Vsync', note:`Trigger: adaptive trigger (2–4 L/min) → Astral Vsync Medium.` };
+      const snap = Math.min(15, Math.max(0.5, lpm));
+      return { val:snap, trigMode:'Flow', note:`Trigger: flow trigger ${lpm} L/min → Astral Flow ${snap} L/min.` };
+    }
+    if (targetDev === 'Vivo 45 LS / Nippy4+') {
+      if (isSensitive) return { val:1, trigMode:null, note:'Trigger: sensitive trigger (<2 L/min) → Vivo Trigger 1 (most sensitive).' };
+      if (isAutoTrak)  return { val:3, trigMode:null, note:'Trigger: adaptive trigger (2–4 L/min) → Vivo Trigger 3/9.' };
+      const v = Math.min(9, Math.max(1, Math.round(lpm)));
+      return { val:v, trigMode:null, note:`Trigger: flow trigger ${lpm} L/min → Vivo Trigger ${v}/9.` };
+    }
+    if (targetDev === 'Luisa') {
+      if (isSensitive) return { val:1, trigMode:null, note:'Trigger: sensitive trigger (<2 L/min) → Luisa Trigger 1.' };
+      return { val:'Auto', trigMode:null, note:'Trigger: adaptive trigger (≥2 L/min) → Luisa Trigger Auto.' };
+    }
+    if (targetDev === 'VOCSN') {
+      const snap = EVO_FLOW_OPTS.reduce((b,v)=>Math.abs(v-lpm)<Math.abs(b-lpm)?v:b, EVO_FLOW_OPTS[0]);
+      return { val:snap, trigMode:null, note:`Trigger ${lpm} L/min → VOCSN Flow Trigger ${snap} L/min.` };
+    }
+    return { val:trigSetting, trigMode:null, note:null };
+  }
+
+  function buildEvoPrescription(u, modeInfo) {
+    const notes=[], pres=derivePressures(u);
+    const isAstralFlow=(state.sourceDevice==='Astral 100'||state.sourceDevice==='Astral 150')&&u.triggerMode==='Flow';
+    const srcFlowTrig=deviceData[state.sourceDevice]?.triggerType==='flow'||isAstralFlow;
+    const trigRes=triggerToEvo(state.sourceDevice, u.triggerFlow??u.triggerLocal, srcFlowTrig);
+    const riseRes=riseToEvo(state.sourceDevice, u.rise);
+    if(modeInfo.note) notes.push({type:'info',text:modeInfo.note});
+    if(trigRes.note)  notes.push({type:'info',text:trigRes.note});
+    if(riseRes.note)  notes.push({type:'info',text:riseRes.note});
+    const rows=[];
+    const push=(label,val,universal,warn=null)=>{rows.push({label,val:val??'—',universal,warn});if(warn)notes.push({type:'warning',text:warn});};
+    rows.push({label:'Mode',val:modeInfo.mode,universal:'Universal intent: '+u.modeIntent,warn:null});
+    if(modeInfo.mode==='AVAPS-AE'){
+      rows.push({label:'PC Breath',val:modeInfo.pcBreath?'ON':'OFF',universal:'PC breath',warn:null});
+      const minE=u.epapMin??pres.epap??5, maxE=u.epapMax??Math.min(20,(pres.epap??5)+4);
+      const minP=u.psMin??(pres.pressureSupport?Math.max(0,pres.pressureSupport-2):2);
+      const maxP=u.psMax??(pres.pressureSupport?pres.pressureSupport+4:20);
+      push('Min EPAP (cmH₂O)',minE,'Min EPAP');
+      push('Max EPAP (cmH₂O)',Math.min(20,maxE),'Max EPAP',maxE>20?'Max EPAP capped at 20 cmH₂O on Trilogy Evo.':null);
+      push('Min PS (cmH₂O)',minP,'Min PS');
+      push('Max PS (cmH₂O)',maxP,'Max PS');
+      if(u.targetVt) push('Target Vt (mL)',u.targetVt,'Target Tidal Volume');
+      if(u.targetVa){const vv=calcAvapsVt(u.targetVa,u.rr,u.ptHeight);push('Target Vt (mL)',vv.vt,`iVAPS Va ${u.targetVa} L/min → Alveolar Vt ${vv.alveolarVt} + Deadspace ${vv.deadspace} mL`);}
+    } else if(modeInfo.mode==='S/T'){
+      if(pres.epap!=null) push('EPAP/PEEP (cmH₂O)',pres.epap,'EPAP / PEEP');
+      if(pres.ipap!=null) push('IPAP (cmH₂O)',pres.ipap,'IPAP');
+    } else if(modeInfo.mode==='PSV'){
+      if(pres.epap!=null) push('EPAP/PEEP (cmH₂O)',pres.epap,'EPAP / PEEP');
+      if(pres.pressureSupport!=null) push('Pressure Support (cmH₂O)',pres.pressureSupport,'PS over EPAP');
+    } else if(modeInfo.mode==='AC/PC'){
+      if(pres.epap!=null) push('EPAP/PEEP (cmH₂O)',pres.epap,'EPAP / PEEP');
+      if(pres.ipap!=null) push('IPAP (cmH₂O)',pres.ipap,'Total Insp. Pressure');
+    } else if(modeInfo.mode==='AC/VC'){
+      if(pres.epap!=null) push('EPAP/PEEP (cmH₂O)',pres.epap,'EPAP / PEEP');
+      if(u.targetVt) push('Target Vt (mL)',u.targetVt,'Target Tidal Volume');
+    } else if(modeInfo.mode==='CPAP'){
+    if(state.sourceDevice==='VOCSN') notes.push({type:'warning',text:'⚠ VOCSN has no standalone CPAP mode. CPAP is achieved on VOCSN via SIMV-Pressure with Breath Rate = 0, Pressure Support = 0, PEEP = desired CPAP level.'});
+      if(pres.epap!=null) push('EPAP/PEEP (cmH₂O)',pres.epap,'EPAP / PEEP');
+    }
+    if(u.rr!=null) push('Backup Rate (bpm or Auto)',String(u.rr).toLowerCase().includes('auto')?'Auto Backup Rate':u.rr,'Backup / Mandatory Rate');
+    if(u.tiMin!=null) push('Ti Min (s)',u.tiMin,'Ti Min');
+    if(u.tiMax!=null) push('Ti Max (s)',u.tiMax,'Ti Max');
+    if(u.ti!=null&&!String(u.ti).toLowerCase().includes('auto')) push('Ti (s)',u.ti,'Inspiratory Time');
+    push(`Rise Time (Level ${riseRes.level} = ${riseRes.ms} ms)`,`Level ${riseRes.level}`,'Rise Time');
+    push('Auto-Trak / Flow Trigger',trigRes.setting,'Trigger Sensitivity',trigRes.type==='flow'?'Flow trigger selected. Evo Auto-Trak is often preferred for home ventilation.':null);
+    if(u.cyclePercent!=null) push('Cycle Sensitivity','Auto-Trak (see note)','Cycle % Peak Flow',`Source cycle ${u.cyclePercent}%. Evo Auto-Trak Cycle recommended unless flow triggering is used.`);
+    else push('Cycle Sensitivity','Auto-Trak','Cycle % Peak Flow');
+    if(u.leakComp&&!String(u.leakComp).toLowerCase().includes('off')) notes.push({type:'info',text:'Leak Compensation: Evo Auto-Trak inherently compensates for leak.'});
+    return {rows,notes};
+  }
+
+  function matchTargetMode(u, tDev) {
+    const intent=u.modeIntent, hasAE=u.autoEPAP&&!String(u.autoEPAP).toLowerCase().includes('off');
+    const modes=tDev.modes;
+    const aeKeys=['epapMin','autoEPAP'];
+    const modesByIntent=Object.entries(modes).filter(([,d])=>d.intent===intent);
+    if(modesByIntent.length>1){
+      if(hasAE){ const ae=modesByIntent.find(([,d])=>aeKeys.some(k=>d.settings.includes(k))); if(ae) return ae[0]; }
+      else { const noAE=modesByIntent.find(([,d])=>!aeKeys.some(k=>d.settings.includes(k))); if(noAE) return noAE[0]; }
+    }
+    if(modesByIntent.length===1) return modesByIntent[0][0];
+    const fb={'VAPS-Alveolar':['VAPS-ST','VAPS-PC','BPAP-ST'],'VAPS-PC':['VAPS-ST','VAPS-Alveolar','BPAP-ST','Pressure Control'],'VAPS-ST':['VAPS-PC','VAPS-Alveolar','BPAP-ST','Pressure Support'],'BPAP-ST':['Pressure Support','Pressure Control'],'Pressure Support':['BPAP-ST'],'Pressure Control':['BPAP-ST','Pressure Support'],'Volume Control':['Pressure Control']};
+    for(const alt of (fb[intent]||[])) for(const[name,data] of Object.entries(modes)) if(data.intent===alt) return name;
+    return Object.keys(modes)[0];
+  }
+
+  function buildEvoFromIntermediate(evoInt) {
+    const rows = [{label:'Mode', val:evoInt.mode, universal:'Trilogy Evo mode', warn:null}];
+    const notes = [...(evoInt._notes||[])];
+    const cpush = (label, key, val) => {
+      if (val == null) return;
+      const c = clampVal(key, val, EVO_RANGES);
+      rows.push({label, val:c.val, universal:canonicalSettings[key]?.label||label, warn:c.warning||null});
+      if (c.warning) notes.push({type:'warning', text:c.warning});
+    };
+    if (evoInt.mode==='AVAPS-AE') {
+      if (evoInt.pcBreath!=null) rows.push({label:'PC Breath', val:evoInt.pcBreath?'ON':'OFF', universal:'PC Breath', warn:null});
+      cpush('Min EPAP (cmH₂O)',  'epapMin', evoInt.epapMin);
+      cpush('Max EPAP (cmH₂O)',  'epapMax', evoInt.epapMax);
+      cpush('Min PS (cmH₂O)',    'psMin',   evoInt.psMin);
+      cpush('Max PS (cmH₂O)',    'psMax',   evoInt.psMax);
+      cpush('Target Vt (mL)',    'targetVt',evoInt.targetVt);
+    } else if (evoInt.mode==='S/T') {
+      if (evoInt.avaps) {
+        rows.push({label:'AVAPS', val:'On', universal:'AVAPS', warn:null});
+        cpush('EPAP/PEEP (cmH₂O)', 'epap',    evoInt.epap);
+        cpush('IPAP Min (cmH₂O)',   'ipapMin', evoInt.ipapMin);
+        cpush('IPAP Max (cmH₂O)',   'ipapMax', evoInt.ipapMax);
+        cpush('Target Vt (mL)',    'targetVt', evoInt.targetVt);
+      } else {
+        cpush('EPAP/PEEP (cmH₂O)', 'epap', evoInt.epap);
+        cpush('IPAP (cmH₂O)',       'ipap', evoInt.ipap);
+      }
+    } else if (evoInt.mode==='PSV') {
+      if (evoInt.avaps) {
+        rows.push({label:'AVAPS', val:'On', universal:'AVAPS', warn:null});
+        cpush('EPAP/PEEP (cmH₂O)', 'epap',     evoInt.epap);
+        cpush('PS Min (cmH₂O)',    'psMin',    evoInt.psMin);
+        cpush('PS Max (cmH₂O)',    'psMax',    evoInt.psMax);
+        cpush('Target Vt (mL)',    'targetVt', evoInt.targetVt);
+      } else {
+        cpush('EPAP/PEEP (cmH₂O)',        'epap',            evoInt.epap);
+        cpush('Pressure Support (cmH₂O)', 'pressureSupport', evoInt.pressureSupport);
+      }
+    } else if (evoInt.mode==='AC/PC') {
+      if (evoInt.avaps) {
+        rows.push({label:'AVAPS', val:'On', universal:'AVAPS', warn:null});
+        cpush('EPAP/PEEP (cmH₂O)', 'epap',  evoInt.epap);
+        cpush('PC Min (cmH₂O)',    'psMin', evoInt.psMin);
+        cpush('PC Max (cmH₂O)',    'psMax', evoInt.psMax);
+        cpush('Target Vt (mL)',    'targetVt', evoInt.targetVt);
+      } else {
+        cpush('EPAP/PEEP (cmH₂O)', 'epap', evoInt.epap);
+        cpush('IPAP (cmH₂O)',       'ipap', evoInt.ipap);
+      }
+    } else if (evoInt.mode==='AC/VC') {
+      cpush('EPAP/PEEP (cmH₂O)', 'epap',     evoInt.epap);
+      cpush('Target Vt (mL)',     'targetVt', evoInt.targetVt);
+      rows.push({label:'Flow Shape', val:evoInt.flowShape||'Ramp', universal:'Flow Shape', warn:null});
+    } else if (evoInt.mode==='CPAP') {
+      rows.push({label:'CPAP (cmH₂O)', val:evoInt.epap, universal:'CPAP Pressure', warn:null});
+    }
+    if (evoInt.rr   != null) cpush('Backup Rate (bpm)', 'rr',    evoInt.rr);
+    if (evoInt.tiMin!= null) cpush('Ti Min (s)',         'tiMin', evoInt.tiMin);
+    if (evoInt.tiMax!= null) cpush('Ti Max (s)',         'tiMax', evoInt.tiMax);
+    if (evoInt.ti   != null) cpush('Ti (s)',             'ti',    evoInt.ti);
+    if(evoInt.mode !== 'CPAP' && evoInt.mode !== 'AC/VC') rows.push({label:`Rise Time (Level ${evoInt.riseLevel} = ${evoInt.riseMs} ms)`, val:`Level ${evoInt.riseLevel}`, universal:'Rise Time', warn:null});
+    const trigWarn = evoInt.triggerType==='flow' ? 'Flow trigger selected. Auto-Trak is recommended for most HMV patients.' : null;
+    rows.push({label:'Auto-Trak / Flow Trigger', val:evoInt.triggerSetting, universal:'Trigger sensitivity', warn:trigWarn});
+    if (trigWarn) notes.push({type:'warning', text:trigWarn});
+    if (evoInt.cyclePercent!=null) notes.push({type:'warning', text:`Source cycle sensitivity ${evoInt.cyclePercent}%. Evo Auto-Trak Cycle recommended unless flow triggering is used.`});
+    notes.push({type:'warning', text:'SAFETY: Verify all translated settings clinically against the Trilogy Evo manual before patient use.'});
+    return {modeName:evoInt.mode, rows, notes};
+  }
+
+  function buildVivo52Target(evoInt) {
+    const T = VIVO52, tDev = deviceData[T];
+    const hasAE   = evoInt.mode==='AVAPS-AE';
+    const hasVaps = !!evoInt.avaps || (hasAE && !evoInt.fixedPS);
+    const isPC    = evoInt.mode==='AC/PC' || evoInt.pcBreath===true;
+    let modeName;
+    if (evoInt.mode==='CPAP')         modeName = 'CPAP';
+    else if (evoInt.mode==='AC/VC')   modeName = 'VCV(A)';
+    else if (hasAE)                   modeName = 'PSV(TgV)+AE';
+    else if (hasVaps)                 modeName = evoInt.mode==='AC/PC' ? 'PCV(A+TgV)' : 'PSV(TgV)';
+    else if (evoInt.mode==='AC/PC')   modeName = 'PCV(A)';
+    else                              modeName = 'PSV';
+    const isPSVfamily = modeName.startsWith('PSV');
+    const ranges = {...tDev.ranges, rr: isPSVfamily ? {min:4,max:30,step:1} : {min:4,max:40,step:1}};
+    const rows = [{label:'Mode', val:modeName, universal:`Universal intent → ${T} ${modeName}`, warn:null}];
+    const notes = [{type:'info', text:`Mode: ${state.sourceDevice} ${state.sourceMode} → ${T} ${modeName}.`}];
+    (evoInt._notes||[]).filter(n=>n.keep).forEach(n=>notes.push(n));
+    const cpush = (label, key, val, uLabel) => {
+      if (val == null) return;
+      const c = clampVal(key, val, ranges);
+      rows.push({label, val:c.val, universal:uLabel||canonicalSettings[key]?.label||label, warn:c.warning||null});
+      if (c.warning) notes.push({type:'warning', text:c.warning});
+    };
+    const warn = (t) => notes.push({type:'warning', text:t});
+    const L = tDev.localNames;
+    const ep = evoInt.epap;
+    const totalIpap = evoInt.ipap ?? ((ep!=null && evoInt.pressureSupport!=null) ? ep + evoInt.pressureSupport : null);
+
+    if (modeName==='CPAP') {
+      cpush(L.cpap, 'cpap', evoInt.epap, 'CPAP Pressure');
+    } else if (modeName==='VCV(A)') {
+      cpush(L.epap, 'epap', ep, 'EPAP / PEEP');
+      cpush(L.targetVt, 'targetVt', evoInt.targetVt, 'Target Tidal Volume');
+    } else if (modeName==='PSV(TgV)+AE') {
+      rows.push({label:L.pcBreath, val:isPC?'Yes':'No', universal:'PC Breath', warn:null});
+      cpush(L.epapMin, 'epapMin', evoInt.epapMin, 'Min EPAP');
+      cpush(L.epapMax, 'epapMax', evoInt.epapMax, 'Max EPAP');
+      cpush(L.psMin, 'psMin', evoInt.psMin, 'Min PS');
+      cpush(L.psMax, 'psMax', evoInt.psMax, 'Max PS');
+      cpush(L.targetVt, 'targetVt', evoInt.targetVt, 'Target Tidal Volume');
+      if (evoInt.psMin!=null && evoInt.psMin===evoInt.psMax)
+        notes.push({type:'info', text:`Volume targeting off in source → Min PS = Max PS = ${evoInt.psMin} cmH₂O (fixed source PS); Target Volume is inactive.`});
+      if (evoInt.targetVt==null) warn(`${modeName} requires a Target Volume; none in the source prescription. Set manually${evoInt.psMin===evoInt.psMax?' (inactive because Min PS = Max PS)':''}.`);
+      const eMax = Number(evoInt.epapMax), pMax = Number(evoInt.psMax);
+      if (!isNaN(eMax) && !isNaN(pMax)) {
+        const lim = Math.min(50, Math.max(eMax+2, eMax+pMax));
+        cpush(L.pressureLimit, 'pressureLimit', lim, 'Pressure Limit');
+        notes.push({type:'info', text:`Pressure Limit set to Max EPAP + Max PS (${lim} cmH₂O); keep it below the High Pressure alarm.`});
+      }
+      warn('Auto-EPAP on the Vivo 45 LS (SW 5.2.0) is for adults, leak circuit, mask interface only, and is cleared for hospital use only (K232365).');
+    } else if (modeName==='PSV(TgV)' || modeName==='PCV(A+TgV)') {
+      cpush(L.epap, 'epap', ep, 'EPAP / PEEP');
+      let iMin = evoInt.ipapMin, iMax = evoInt.ipapMax;
+      if (iMin==null && ep!=null && evoInt.psMin!=null) iMin = ep + evoInt.psMin;
+      if (iMax==null && ep!=null && evoInt.psMax!=null) iMax = ep + evoInt.psMax;
+      if ((iMin==null || iMax==null) && ep!=null) {
+        const ps = evoInt.pressureSupport ?? 10;
+        iMin = iMin ?? ep + Math.max(2, ps-2); iMax = iMax ?? ep + ps + 4;
+        warn(`Source gave no pressure limits; Min/Max Pressure estimated from PS ${ps} (−2/+4). Verify clinically.`);
+      }
+      cpush(L.ipapMin, 'ipapMin', iMin, 'Min IPAP (total pressure)');
+      cpush(L.ipapMax, 'ipapMax', iMax, 'Max IPAP (total pressure)');
+      cpush(L.targetVt, 'targetVt', evoInt.targetVt, 'Target Tidal Volume');
+      if (evoInt.targetVt==null) warn(`${modeName} requires a Target Volume; none in the source prescription. Set manually.`);
+    } else { // PSV, PCV(A)
+      cpush(L.epap, 'epap', ep, 'EPAP / PEEP');
+      cpush(L.ipap, 'ipap', totalIpap, 'IPAP (Total Insp. Pressure)');
+    }
+
+    if (modeName!=='CPAP') {
+      let rr = evoInt.rr;
+      if (rr==null && modeName!=='VCV(A)') { rr = 12; warn(`Source has no backup rate; ${L.rr} defaulted to 12 bpm. Verify clinically.`); }
+      cpush(L.rr, 'rr', rr, 'Backup / Mandatory Rate');
+      if (isPSVfamily) {
+        cpush(isPC ? L.ti : 'Backup Insp. Time (s)', 'ti', evoInt.ti, 'Inspiratory Time');
+        cpush(L.tiMin, 'tiMin', evoInt.tiMin, 'Ti Min');   // absent for PC breath (rule: PC uses Ti only)
+        cpush(L.tiMax, 'tiMax', evoInt.tiMax, 'Ti Max');
+      } else {
+        cpush(L.ti, 'ti', evoInt.ti, 'Inspiratory Time');
+      }
+      if (modeName!=='VCV(A)') {
+        const rr2 = evoRiseToDevice(evoInt.riseLevel, evoInt.riseMs, T);
+        rows.push({label:L.rise, val:rr2.val, universal:'Rise Time', warn:null});
+        if (rr2.note) notes.push({type:'info', text:rr2.note});
+      }
+      const s = String(evoInt.triggerSetting).toLowerCase();
+      let trig, trigNote;
+      if (evoInt.triggerType==='off') { trig='Off'; trigNote='Trigger: Off (time-triggered only) → Vivo Flow Trigger Off.'; }
+      else if (s.includes('sensitive')) { trig=2; trigNote='Trigger: sensitive trigger (<2 L/min) → Vivo Trigger Type Flow, 2 L/min.'; }
+      else if (evoInt.triggerType==='autotrak') { trig=4; trigNote='Trigger: adaptive trigger (2–4 L/min) → Vivo Trigger Type Flow, 4 L/min.'; }
+      else { const lp = Math.min(9, Math.max(1, Math.round(evoInt.triggerLpm))); trig=lp; trigNote=`Trigger: flow trigger ${evoInt.triggerLpm} L/min → Vivo Trigger Type Flow, ${lp} L/min (range 1–9).`; }
+      rows.push({label:'Trigger Type', val:'Flow', universal:'Trigger Mode', warn:null});
+      rows.push({label:L.triggerFlow, val:trig, universal:'Trigger — Flow Sensitivity', warn:null});
+      notes.push({type:'info', text:trigNote});
+      if (isPSVfamily) {
+        const cyc = evoInt.cyclePercent!=null && !isNaN(Number(evoInt.cyclePercent))
+          ? Math.min(90, Math.max(10, Math.round(Number(evoInt.cyclePercent)/10)*10)) : 30;
+        rows.push({label:L.cyclePercent, val:cyc, universal:'Cycle % Peak Flow', warn:null});
+        notes.push({type:'info', text: evoInt.cyclePercent!=null ? `Exp. Trigger: source ${evoInt.cyclePercent}% → ${cyc}% of peak flow (10% steps).` : 'Exp. Trigger: no source value; Vivo default 30% of peak flow.'});
+      }
+      if (modeName==='VCV(A)') {
+        const sh = evoInt.flowShape==='Square' ? 'Square' : 'Decelerating';
+        rows.push({label:L.flowShape, val:sh, universal:'Flow Shape', warn:null});
+        if (sh!==evoInt.flowShape) notes.push({type:'info', text:`Flow Shape: '${evoInt.flowShape||'Ramp'}' → ${T} '${sh}'.`});
+      }
+    }
+    warn(`SAFETY: Verify all translated settings clinically against the ${T} manual (Doc. 007301) before patient use.`);
+    return {modeName, rows, notes};
+  }
+
+  function buildTargetFromIntermediate(evoInt, tDevName) {
+    if (tDevName === VIVO52) return buildVivo52Target(evoInt);
+    const tDev = deviceData[tDevName];
+    const evoIntentMap = {'AC/PC':'Pressure Control','AC/VC':'Volume Control','S/T':'BPAP-ST','PSV':'Pressure Support','AVAPS-AE':'VAPS-ST','CPAP':'CPAP'};
+    const uForMatch = { modeIntent: evoIntentMap[evoInt.mode]||'BPAP-ST', autoEPAP: evoInt.mode==='AVAPS-AE'?'On':'Off' };
+    let modeName = matchTargetMode(uForMatch, tDev);
+    let luisaNotes = [];
+    if (tDevName === 'Luisa' && (evoInt.mode==='AVAPS-AE' || evoInt.avaps)) {
+      modeName = 'TTV-AE';
+      evoInt = {...evoInt};
+      const hasAE = evoInt.mode==='AVAPS-AE';
+      if (hasAE) {
+        if (evoInt.fixedPS) {
+          luisaNotes.push(`Auto-EPAP without volume targeting → Luisa TTV-AE with PS Min = PS Max = ${evoInt.psMin} cmH₂O (fixed source PS); EPAP range follows source Auto-EPAP.`);
+        }
+      } else {
+        const ep = evoInt.epap;
+        evoInt.epapMin = ep; evoInt.epapMax = ep;
+        if (evoInt.ipapMin!=null && evoInt.ipapMax!=null && ep!=null) {
+          evoInt.psMin = evoInt.ipapMin - ep; evoInt.psMax = evoInt.ipapMax - ep;
+        } else if (evoInt.psMin==null && evoInt.pressureSupport!=null) {
+          evoInt.psMin = evoInt.pressureSupport; evoInt.psMax = evoInt.pressureSupport;
+        }
+        luisaNotes.push(`VAPS with fixed EPAP → Luisa TTV-AE with Min EPAP = Max EPAP = ${ep} cmH₂O (fixed source EPAP); PS range follows source VAPS limits.`);
+        if (evoInt.mode==='AC/PC') luisaNotes.push('Source is pressure-controlled VAPS; Luisa has no volume-targeted PC mode, so TTV-AE is used. Verify clinically.');
+      }
+      if (evoInt.targetVt==null) luisaNotes.push({warn:true, text:'Luisa TTV-AE requires a Target Tidal Volume; none in the source prescription. Set manually.'});
+    }
+    const ms = tDev.modes[modeName]?.settings || [];
+    if (evoInt.mode === 'AC/VC' && (tDevName === 'Astral 100' || tDevName === 'Astral 150')) {
+      const vcWarn = `⚠ Volume Control (AC/VC) is not supported on ${tDevName} with a single-limb leak circuit. AC/VC requires a dual-limb circuit. No translation is possible — consult the clinical team to select an appropriate alternative mode.`;
+      return { modeName: 'Not Supported', rows: [{label:'Mode', val:'AC/VC — Not Supported', universal:`AC/VC requires dual-limb circuit; ${tDevName} single-limb does not support it`, warn:vcWarn}], notes:[{type:'warning', text:vcWarn}] };
+    }
+    const rows = [{label:'Mode', val:modeName, universal:`Universal intent: ${uForMatch.modeIntent} → ${tDevName} ${modeName}`, warn:null}];
+    const notes = [{type:'info', text:`Mode: ${state.sourceDevice} ${state.sourceMode} → ${tDevName} ${modeName}.`}];
+    if (evoInt.fixedPS && tDevName!=='Luisa') notes.push({type:'info', text:`Source TgV Off: pressure support held fixed (Min PS = Max PS) on ${tDevName}.`});
+    luisaNotes.forEach(n => notes.push(typeof n==='string' ? {type:'info', text:n} : {type:'warning', text:n.text}));
+    (evoInt._notes||[]).filter(n=>n.keep).forEach(n=>notes.push(n));
+    const tRanges = tDev.ranges || {};
+    const cpush = (label, key, val, uLabel) => {
+      if (val == null) return;
+      const c = clampVal(key, val, tRanges);
+      rows.push({label, val:c.val, universal:uLabel||canonicalSettings[key]?.label||label, warn:c.warning||null});
+      if (c.warning) notes.push({type:'warning', text:c.warning});
+    };
+    if (ms.includes('epap'))            cpush(tDev.localNames.epap||'EPAP/PEEP',           'epap',            evoInt.epap,            'EPAP / PEEP');
+    if (ms.includes('cpap'))            { const _cc=clampVal('epap',evoInt.epap,tRanges); rows.push({label:tDev.localNames?.cpap||'CPAP (cmH₂O)', val:_cc.val, universal:'CPAP Pressure', warn:_cc.warning||null}); if(_cc.warning) notes.push({type:'warning',text:_cc.warning}); }
+    if (ms.includes('epapMin'))         cpush(tDev.localNames.epapMin||'Min EPAP',          'epapMin',         evoInt.epapMin,         'Min EPAP');
+    if (ms.includes('epapMax'))         cpush(tDev.localNames.epapMax||'Max EPAP',          'epapMax',         evoInt.epapMax,         'Max EPAP');
+    if (ms.includes('ipap'))            cpush(tDev.localNames.ipap||'IPAP',                 'ipap',            evoInt.ipap,            'IPAP');
+    if (ms.includes('pressureSupport')) cpush(tDev.localNames.pressureSupport||'PS',        'pressureSupport', evoInt.pressureSupport, 'Pressure Support above EPAP');
+    if (ms.includes('psMin'))           cpush(tDev.localNames.psMin||'Min PS',              'psMin',           evoInt.psMin,           'Min PS');
+    if (ms.includes('psMax'))           cpush(tDev.localNames.psMax||'Max PS',              'psMax',           evoInt.psMax,           'Max PS');
+    if (ms.includes('targetVt'))        cpush(tDev.localNames.targetVt||'Target Vt',        'targetVt',        evoInt.targetVt,        'Target Tidal Volume');
+    if (ms.includes('rr'))              cpush(tDev.localNames.rr||'Backup Rate',             'rr',              evoInt.rr,              'Backup Rate');
+    if (ms.includes('ti'))              cpush(tDev.localNames.ti||'Ti',                      'ti',              evoInt.ti,              'Inspiratory Time');
+    if (ms.includes('tiMin'))           cpush(tDev.localNames.tiMin||'Ti Min',               'tiMin',           evoInt.tiMin,           'Ti Min');
+    if (ms.includes('tiMax'))           cpush(tDev.localNames.tiMax||'Ti Max',               'tiMax',           evoInt.tiMax,           'Ti Max');
+    if (ms.includes('rise')) {
+      const rr = evoRiseToDevice(evoInt.riseLevel, evoInt.riseMs, tDevName);
+      rows.push({label:tDev.localNames.rise||'Rise Time', val:rr.val, universal:'Rise Time', warn:null});
+      if (rr.note) notes.push({type:'info', text:rr.note});
+    }
+    if (ms.includes('flowShape') && evoInt.flowShape!=null) {
+      const tShape = evoInt.flowShape==='Ramp' && tDevName==='Vivo 45 LS / Nippy4+' ? 'Decelerating' : evoInt.flowShape;
+      rows.push({label:tDev.localNames?.flowShape||'Flow Shape', val:tShape, universal:'Flow Shape', warn:null});
+      if (tShape!==evoInt.flowShape) notes.push({type:'info', text:`Flow Shape: '${evoInt.flowShape}' → ${tDevName} '${tShape}'.`});
+    }
+    if (ms.includes('triggerFlow') || ms.includes('triggerLocal')) {
+      const tr = evoTriggerToDevice(evoInt.triggerSetting, evoInt.triggerLpm, tDevName);
+      const tLabel = ms.includes('triggerFlow') ? (tDev.localNames.triggerFlow||'Flow Trigger') : (tDev.localNames.triggerLocal||'Trigger');
+      rows.push({label:tLabel, val:tr.val, universal:'Trigger', warn:null});
+      if (tr.trigMode && ms.includes('triggerMode')) rows.push({label:'Trigger Type', val:tr.trigMode, universal:'Trigger Mode', warn:null});
+      if (tr.note) notes.push({type:'info', text:tr.note});
+    }
+    notes.push({type:'warning', text:`SAFETY: Verify all translated settings clinically against the ${tDevName} manual before patient use.`});
+    return {modeName, rows, notes};
+  }
+
+
+
+/* ═════════════ NIVtechExchange · presentation layer ═════════════ */
+(function(){
+'use strict';
+
+/* ── advisory rewriting (algorithm output → engineering-style phrasing) ── */
+const KEYLBL = { epap:'EPAP/PEEP', cpap:'CPAP', ipap:'IPAP', ipapMin:'IPAP min', ipapMax:'IPAP max', epapMin:'EPAP min', epapMax:'EPAP max',
+  psMin:'PS min', psMax:'PS max', pressureSupport:'PS', targetVt:'Vt target', rr:'f(rate)', ti:'Ti', tiMin:'Ti min', tiMax:'Ti max', rise:'rise', cyclePercent:'cycle%' };
+const lbl = k => KEYLBL[k] || k;
+const RULES = [
+  [/^Mode: (.+?) → (.+?)\.$/,                      (m,a,b)=>`MODE_MAP ▸ ${a} ⇒ ${b}`],
+  [/^(.+?): source value (\S+) exceeds target maximum (\S+)\. Capped at (\S+)\.$/, (m,k,v,mx,c)=>`BOUND_CHECK[${lbl(k)}] src=${v} > ceil=${mx} ⇒ saturate(${c})`],
+  [/^(.+?): source value (\S+) is below target minimum (\S+)\. Set to (\S+)\.$/,   (m,k,v,mn,c)=>`BOUND_CHECK[${lbl(k)}] src=${v} < floor=${mn} ⇒ saturate(${c})`],
+  [/^SAFETY: Verify all translated settings clinically against the (.+?) manual(?: \(Doc\. (\d+)\))? before patient use\.$/, (m,d,doc)=>`QA_GATE ▸ validate every emitted parameter against the ${d} reference${doc?` (doc ${doc})`:''} before clinical use.`],
+  [/^⚠ Volume Control \(AC\/VC\) is not supported on (.+?) with a single-limb leak circuit\. .*$/, (m,d)=>`UNSUPPORTED_ROUTE ▸ AC/VC needs a dual-limb circuit; ${d} is single-limb/leak only. No mapping emitted — escalate to the clinical team for an alternate mode.`],
+  [/^Auto-EPAP on the Vivo (.+?) is for adults, leak circuit, mask interface only, and is cleared for hospital use only \(K\d+\)\.$/, (m,v)=>`ELIGIBILITY ▸ Auto-EPAP path on Vivo ${v}: adult only, leak circuit, mask interface, hospital setting only.`],
+  [/^Flow trigger selected\. Auto-Trak is recommended for most HMV patients\.$/, ()=>`TRIG_PREF ▸ flow trigger emitted; adaptive (Auto-Trak) is the usual default for home-ventilation leak circuits.`],
+  [/^Source cycle sensitivity (\S+)%\. Evo Auto-Trak Cycle recommended unless flow triggering is used\.$/, (m,c)=>`CYCLE_NOTE ▸ src cycle=${c}% has no direct analogue; adaptive cycle preferred unless flow-trigger mode is active.`],
+  [/^(\S+?) requires a Target Volume; none in the source prescription\. Set manually(?: \(inactive because Min PS = Max PS\))?\.$/, (m,md)=>`MISSING_INPUT ▸ ${md} needs a Vt target; none present in source. Manual entry required${/inactive/.test(m)?' (inert while PS min = PS max)':''}.`],
+  [/^Luisa TTV-AE requires a Target Tidal Volume; none in the source prescription\. Set manually\.$/, ()=>`MISSING_INPUT ▸ TTV-AE needs a Vt target; none present in source. Manual entry required.`],
+  [/^Source gave no pressure limits; Min\/Max Pressure estimated from PS (\S+) \((.+?)\)\. Verify clinically\.$/, (m,ps,b)=>`ESTIMATE ▸ no pressure bounds in source; min/max synthesised from PS=${ps} (offsets ${b}). Flag: clinical verification required.`],
+  [/^Source has no backup rate; (.+?) defaulted to (\S+) bpm\. Verify clinically\.$/, (m,l,v)=>`DEFAULT_APPLIED ▸ no backup rate in source; ${l} initialised to ${v} bpm. Flag: clinical verification required.`],
+  [/^Pressure Limit set to Max EPAP \+ Max PS \((\S+) cmH₂O\); keep it below the High Pressure alarm\.$/, (m,v)=>`DERIVED ▸ pressure_limit = EPAPmax + PSmax = ${v} cmH₂O (must stay below the high-pressure alarm).`],
+  [/^Auto-EPAP without volume targeting → Luisa TTV-AE with PS Min = PS Max = (\S+) cmH₂O \(fixed source PS\); EPAP range follows source Auto-EPAP\.$/, (m,v)=>`AE_FIXED_PS ▸ AE active, volume-targeting inactive ⇒ TTV-AE with PSmin = PSmax = ${v} cmH₂O; EPAP window copied from source.`],
+  [/^VAPS with fixed EPAP → Luisa TTV-AE with Min EPAP = Max EPAP = (\S+) cmH₂O \(fixed source EPAP\); PS range follows source VAPS limits\.$/, (m,v)=>`VAPS_FIXED_EPAP ▸ volume-targeting active, AE inactive ⇒ TTV-AE with EPAPmin = EPAPmax = ${v} cmH₂O; PS window copied from source.`],
+  [/^Source is pressure-controlled VAPS; Luisa has no volume-targeted PC mode, so TTV-AE is used\. Verify clinically\.$/, ()=>`ROUTE_NOTE ▸ PC-type VAPS has no native analogue on Luisa; TTV-AE substituted. Flag: clinical verification required.`],
+  [/^Volume targeting off in source → Min PS = Max PS = (\S+) cmH₂O \(fixed source PS\); Target Volume is inactive\.$/, (m,v)=>`FIXED_PS ▸ src volume-targeting off ⇒ PSmin = PSmax = ${v} cmH₂O; Vt target inert.`],
+  [/^Source Min PS = Max PS \((\S+) cmH₂O\): volume targeting inactive → translated as Auto-EPAP with fixed PS( and PC Breath)?\.$/, (m,v,pc)=>`SRC_DEGENERATE ▸ PSmin = PSmax = ${v} cmH₂O ⇒ volume-targeting inert; interpreted as AE + fixed PS${pc?' + PC breath':''}.`],
+  [/^Source TgV Off: pressure support held fixed \(Min PS = Max PS\) on (.+?)\.$/, (m,d)=>`FIXED_PS ▸ src TgV off ⇒ ${d}: PSmin = PSmax (held constant).`],
+  [/^Exp\. Trigger: no source value; Vivo default (\S+)% of peak flow\.$/, (m,v)=>`CYCLE_XFORM ▸ no src cycle value ⇒ target default ${v}% peak flow.`],
+  [/^Exp\. Trigger: source (\S+)% → (\S+)% of peak flow \((\S+)% steps\)\.$/, (m,a,b,s)=>`CYCLE_XFORM ▸ src ${a}% ⇒ ${b}% peak flow (quantised to ${s}% bins).`],
+  [/^Flow Shape: '(.+?)' → (.+?) '(.+?)'\.$/, (m,a,d,b)=>`SHAPE_XFORM ▸ '${a}' ⇒ ${d} '${b}'.`],
+  [/^Pressure control uses a set Insp\. Time; source Ti Max (\S+) s used as Ti\. Verify clinically\.$/, (m,v)=>`PC_TI ▸ pressure-control path uses a fixed Ti; src Ti max = ${v} s adopted. Flag: clinical verification required.`],
+  [/^Vt calculated from iVAPS: (.+)$/, (m,r)=>`VT_DERIVE ▸ ${r.replace('Va ','Va=').replace(' ÷ rate ',' / rate=').replace(' = alveolar Vt ',' ⇒ Vt_alv=').replace(' + dead space ',' + Vd=').replace(' (ht ',' [ht=').replace(' cm) = ','cm] ⇒ Vt=')}`],
+  [/^Trigger set to Off — ventilator is time-triggered only\.$/, ()=>`TRIG_XFORM ▸ trigger=OFF ⇒ time-triggered operation only.`],
+  [/^Trigger: Off \(time-triggered only\) → (.+?)\.$/, (m,d)=>`TRIG_XFORM ▸ trigger=OFF (time-triggered) ⇒ ${d}.`],
+  [/^Trigger not recognized; defaulting to Auto-Trak\.$/, ()=>`TRIG_XFORM ▸ unparseable trigger ⇒ default adaptive (Auto-Trak).`],
+  [/^Auto-Trak( Sensitive)? selected\.$/, (m,s)=>`TRIG_XFORM ▸ adaptive${s?' (sensitive)':''} trigger passed through.`],
+  [/^Universal trigger (\S+) L\/min \(<(\S+) LPM\) → (.+?)\.$/, (m,n,t,d)=>`TRIG_XFORM ▸ ${n} L/min (< ${t}) ⇒ ${d}.`],
+  [/^Universal trigger (\S+) L\/min \(≤(\S+) LPM\) → (.+?)\.$/, (m,n,t,d)=>`TRIG_XFORM ▸ ${n} L/min (≤ ${t}) ⇒ ${d}.`],
+  [/^Flow trigger (\S+) L\/min → (.+?)\.$/, (m,n,d)=>`TRIG_XFORM ▸ flow ${n} L/min ⇒ ${d}.`],
+  [/^Trigger (\S+) L\/min → (.+?)\.$/, (m,n,d)=>`TRIG_XFORM ▸ ${n} L/min ⇒ ${d}.`],
+  [/^Trigger: (.+)$/, (m,r)=>`TRIG_XFORM ▸ ${r.replace(/ → /g,' ⇒ ').replace(/^sensitive trigger/,'sensitive').replace(/^adaptive trigger/,'adaptive').replace(/^flow trigger/,'flow')}`],
+  [/^Rise Time: (.+)$/, (m,r)=>`RISE_XFORM ▸ ${r
+      .replace(/ → /g,' ⇒ ')
+      .replace(/setting \(≈(\S+) ms to ⅔ PS\)/,'[t66=$1 ms]')
+      .replace(/time to ⅔ PS ≈ (\S+) ms/,'t66≈$1 ms')
+      .replace(/Trilogy Evo targets ⅔ of PS duration; source( device)? targets ~(\S+)% PS\./,'ref: dst=66%·PS, src≈$2%·PS.')
+      .replace(/\((Astral) targets ~(\S+)% PS, so time is doubled; range (\S+)–(\S+) ms\)/,'(ref $2%·PS ⇒ ×2; clamp $3–$4 ms)')
+      .replace(/\(nearest of (\S+) speed levels\)/,'(nearest-bin over $1 speed levels)')
+      .replace(/\(linear scale of (\S+)\)/,'(linear map onto $1)')
+      .replace(/\((\S+) ms, ⅔ PS target\)/,'($1 ms, ref 66%·PS)')
+      .replace(/\(≊(\S+) ms, (\S+)% PS target\)/,'(≈$1 ms, ref $2%·PS)')
+      .replace(/Verify clinically\./,'Flag: clinical verification required.')
+      .replace(/ rise time not recognized/i,' unrecognised')}`],
+  [/^Rise time not recognized; defaulted to Evo level (\S+) \((\S+) ms\)\. Verify clinically\.$/, (m,l,ms)=>`RISE_XFORM ▸ unparseable rise ⇒ default level ${l} (${ms} ms). Flag: clinical verification required.`],
+  [/^S\/T \+ Auto-EPAP \(TgV Off\) → (.+?); PS Min = PS Max \(fixed pressure, no volume targeting\)\.$/, (m,d)=>`MODE_RULE ▸ S/T + AE, TgV=off ⇒ ${d}; PSmin = PSmax (fixed PS, no volume-targeting).`],
+  [/^S\/T \+ Auto-EPAP \+ TgV → (.+?)\.$/, (m,d)=>`MODE_RULE ▸ S/T + AE + TgV ⇒ ${d}.`],
+  [/^S\/T \+ TgV On, Auto-EPAP Off → (.+?)\.$/, (m,d)=>`MODE_RULE ▸ S/T + TgV, AE=off ⇒ ${d}.`],
+  [/^Source VAPS \(no Auto-EPAP\) → (.+?)\.$/, (m,d)=>`MODE_RULE ▸ VAPS, AE=off ⇒ ${d}.`],
+  [/^VAPS-PC without Auto-EPAP → (.+?)\.$/, (m,d)=>`MODE_RULE ▸ PC-VAPS, AE=off ⇒ ${d}.`],
+  [/^Source: VAPS(?:-PC)? \+ Auto-EPAP → (.+?)\.$/, (m,d)=>`MODE_RULE ▸ VAPS + AE ⇒ ${d}.`],
+  [/^(VOCSN Vol\. Targeted-P[SC]) \+ IntelliPAP (On|Off) → (.+?)\.$/, (m,a,o,d)=>`MODE_RULE ▸ ${a}, AE(IntelliPAP)=${o.toLowerCase()} ⇒ ${d}.`],
+  [/^Trigger Off → time-triggered only → (.+?)\.$/, (m,d)=>`MODE_RULE ▸ trigger=OFF (time-triggered) ⇒ ${d}.`],
+];
+function advisory(t){
+  let s=String(t);
+  for(const [re,fn] of RULES){ if(re.test(s)) return s.replace(re,fn); }
+  return 'NOTE ▸ '+s.replace(/ → /g,' ⇒ ').replace(/Verify clinically\./,'Flag: clinical verification required.');
+}
+window.__advisory = advisory;   // exposed for self-test
+
+/* ── helpers ── */
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const toast = msg => { const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),1800); };
+const barColor = m => { let h=0; for(const c of m) h=(h*31+c.charCodeAt(0))%360; return `hsl(${h} 70% 55%)`; };
+const numeric = v => v!=='' && v!==null && v!==undefined && !isNaN(Number(v));
+state.targetDevice = state.targetDevice || 'Trilogy Evo';
+let renderedKeys = '';
+
+function resetValues(){ state.values = {...deviceData[state.sourceDevice].modes[state.sourceMode].defaults}; }
+function cfgNow(){ return deviceData[state.sourceDevice].modes[state.sourceMode]; }
+
+/* ── 01 / 03 tiles ── */
+function tilesHTML(names, current, filter){
+  const f=(filter||'').toLowerCase().trim();
+  return names.filter(n=>!f || n.toLowerCase().includes(f) || deviceData[n].manufacturer.toLowerCase().includes(f))
+    .map(n=>`<button type="button" class="tile${n===current?' on':''}" data-d="${esc(n)}" style="--bar:${barColor(deviceData[n].manufacturer)}"><div class="t1">${esc(n)}</div><div class="t2">${esc(deviceData[n].manufacturer)}</div></button>`).join('')
+    || '<div class="hint">no platform matches</div>';
+}
+function renderSource(){
+  $('srcTiles').innerHTML = tilesHTML(Object.keys(deviceData), state.sourceDevice, $('srcFind').value);
+  const modes=Object.keys(deviceData[state.sourceDevice].modes);
+  $('modePills').innerHTML = modes.map(m=>`<button type="button" class="pill${m===state.sourceMode?' on':''}" data-m="${esc(m)}">${esc(m)}</button>`).join('');
+  const c=cfgNow(), note=deviceData[state.sourceDevice].deviceNote||'';
+  $('modeInfo').innerHTML = `<span class="intent">${esc(c.intent)}</span> · ${esc(c.help||'')}${note?`<br><span class="rng">${esc(note)}</span>`:''}`;
+}
+function renderTargets(){ $('tgtTiles').innerHTML = tilesHTML(Object.keys(deviceData), state.targetDevice, ''); }
+
+/* ── 02 parameter console ── */
+function rowHTML(key){
+  const dev=state.sourceDevice, d=deviceData[dev];
+  const name=localName(dev,key), unit=canonicalSettings[key]?.unit||'';
+  const opts=d.settingOptions?.[key], rng=d.ranges?.[key]??(key==='cpap'?d.ranges?.epap:null);
+  const v=state.values[key]??'';
+  let ctl;
+  if(opts){
+    ctl=`<div class="seg" data-k="${key}">${opts.map(o=>`<button type="button" data-v="${esc(o)}" class="${String(v)===String(o)?'on':''}">${esc(o)}</button>`).join('')}</div>`;
+  } else if(rng || numeric(v)){
+    const step=rng?.step||1, hasN=numeric(v);
+    ctl=`<div class="step" data-k="${key}"><button type="button" data-a="-1" aria-label="decrease">−</button><input class="num" inputmode="decimal" value="${esc(v)}" /><button type="button" data-a="1" aria-label="increase">+</button></div>`
+      +(unit?`<span class="unit">${esc(unit)}</span>`:'')
+      +(rng&&hasN?`<input type="range" data-k="${key}" min="${rng.min}" max="${rng.max}" step="${step}" value="${esc(v)}" />`:'')
+      +(rng?`<span class="rng">${rng.min}–${rng.max}</span>`:'');
+  } else {
+    ctl=`<div class="step" data-k="${key}"><input class="txt" value="${esc(v)}" /></div>`+(unit?`<span class="unit">${esc(unit)}</span>`:'');
+  }
+  return `<div class="prow" data-row="${key}"><div><div class="plabel">${esc(name)}</div><div class="pmeta">${esc(key)}</div></div><div class="ctl">${ctl}</div></div>`;
+}
+function renderConsole(){
+  const keys=visibleSettingKeys(cfgNow());
+  renderedKeys=keys.join('|');
+  $('console').innerHTML=keys.map(rowHTML).join('');
+}
+function setValue(key,val,{fromRow=false}={}){
+  state.values[key]=numeric(val)?Number(val):val;
+  const keys=visibleSettingKeys(cfgNow()).join('|');
+  if(keys!==renderedKeys){ renderConsole(); }
+  else if(fromRow===false){ const row=document.querySelector(`[data-row="${key}"]`); if(row){ const inp=row.querySelector('input.num,input.txt'); if(inp) inp.value=state.values[key]; const sl=row.querySelector('input[type=range]'); if(sl) sl.value=state.values[key]; } }
+  renderOutput();
+}
+$('console').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  const seg=b.closest('.seg'); if(seg){ const k=seg.dataset.k; seg.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); setValue(k,b.dataset.v,{fromRow:true}); return; }
+  const st=b.closest('.step'); if(st&&b.dataset.a){
+    const k=st.dataset.k, rng=deviceData[state.sourceDevice].ranges?.[k]??(k==='cpap'?deviceData[state.sourceDevice].ranges?.epap:null);
+    const step=rng?.step||1, cur=numeric(state.values[k])?Number(state.values[k]):(rng?.min??0);
+    let nv=cur+Number(b.dataset.a)*step; if(rng) nv=Math.min(rng.max,Math.max(rng.min,nv));
+    nv=Math.round(nv*1000)/1000; setValue(k,nv);
+  }
+});
+$('console').addEventListener('input',e=>{
+  const t=e.target;
+  if(t.type==='range'){ setValue(t.dataset.k,t.value); return; }
+  if(t.classList.contains('num')||t.classList.contains('txt')){ const k=t.closest('.step').dataset.k; if(t.value.trim()==='') return; setValue(k,t.value.trim(),{fromRow:true}); const sl=t.closest('.prow').querySelector('input[type=range]'); if(sl&&numeric(t.value)) sl.value=t.value; }
+});
+
+/* ── 04 output ── */
+let last=null;
+function compute(){
+  const u=getUniversal(), evo=toEvoIntermediate(u);
+  return state.targetDevice==='Trilogy Evo' ? buildEvoFromIntermediate(evo) : buildTargetFromIntermediate(evo,state.targetDevice);
+}
+function renderOutput(){
+  let r; try{ r=compute(); }catch(err){ $('outMode').textContent='ERR'; $('outRows').innerHTML=`<tr><td class="k">engine fault</td><td class="v">${esc(err.message)}</td></tr>`; $('outAdv').innerHTML=''; return; }
+  last=r;
+  $('outMode').textContent = r.modeName || r.rows[0]?.val || '—';
+  $('outRoute').innerHTML = `<b>${esc(state.sourceDevice)}</b> · ${esc(state.sourceMode)} <i>⇒</i> <b>${esc(state.targetDevice)}</b>`;
+  $('outRows').innerHTML = r.rows.filter(x=>x.label!=='Mode').map(x=>`<tr class="${x.warn?'flag':''}"><td class="k">${esc(x.label)}</td><td class="v">${esc(x.val)}</td></tr>`).join('');
+  const w=r.notes.filter(n=>n.type==='warning'), i=r.notes.filter(n=>n.type!=='warning');
+  const line=(n,cls,lv)=>`<div class="a ${cls}"><span class="lv">${lv}</span><span class="tx">${esc(advisory(n.text))}</span></div>`;
+  $('outAdv').innerHTML = (w.length?`<h3>Advisories</h3>${w.map(n=>line(n,'warn','CHECK')).join('')}`:'')+(i.length?`<h3>Translation trace</h3>${i.map(n=>line(n,'trace','TRACE')).join('')}`:'');
+  $('railMeta').innerHTML = `<b>src</b> ${esc(state.sourceDevice)}<br><b>mode</b> ${esc(state.sourceMode)}<br><b>dst</b> ${esc(state.targetDevice)}<br><b>out</b> ${esc(r.modeName||'')}`;
+}
+
+/* ── events: tiles / pills / find ── */
+$('srcTiles').addEventListener('click',e=>{ const b=e.target.closest('.tile'); if(!b) return;
+  state.sourceDevice=b.dataset.d; state.sourceMode=Object.keys(deviceData[state.sourceDevice].modes)[0]; resetValues(); renderSource(); renderConsole(); renderOutput(); });
+$('modePills').addEventListener('click',e=>{ const b=e.target.closest('.pill'); if(!b) return;
+  state.sourceMode=b.dataset.m; const c=cfgNow(); const next={}; c.settings.forEach(k=>next[k]=state.values[k]??c.defaults[k]??''); Object.entries(c.defaults).forEach(([k,v])=>{ if(!(k in next)) next[k]=v; }); state.values=next;
+  renderSource(); renderConsole(); renderOutput(); });
+$('tgtTiles').addEventListener('click',e=>{ const b=e.target.closest('.tile'); if(!b) return; state.targetDevice=b.dataset.d; renderTargets(); renderOutput(); });
+$('srcFind').addEventListener('input',()=>{ $('srcTiles').innerHTML=tilesHTML(Object.keys(deviceData), state.sourceDevice, $('srcFind').value); });
+
+/* ── exports (no normalised/universal block) ── */
+const HR='─'.repeat(54);
+function reportText(){
+  const r=last||compute(), d=deviceData[state.sourceDevice], c=cfgNow(), L=[];
+  L.push('NIVtechExchange // TRANSLATION REPORT', `generated ${new Date().toLocaleString()}`, HR, '');
+  L.push(`SOURCE  ${state.sourceDevice} (${d.manufacturer})`, `MODE    ${state.sourceMode}`, '', 'SOURCE PARAMETERS');
+  visibleSettingKeys(c).forEach(k=>{ const u=canonicalSettings[k]?.unit; L.push(`  ${localName(state.sourceDevice,k).padEnd(34)} ${state.values[k]??''}${u?' '+u:''}`); });
+  L.push('', HR, '', `TARGET  ${state.targetDevice}`, `MODE    ${r.modeName||r.rows[0]?.val||''}`, '', 'TARGET PARAMETERS');
+  r.rows.filter(x=>x.label!=='Mode').forEach(x=>L.push(`  ${String(x.label).padEnd(34)} ${x.val}${x.warn?'   ▲':''}`));
+  const w=r.notes.filter(n=>n.type==='warning'), i=r.notes.filter(n=>n.type!=='warning');
+  if(w.length){ L.push('','ADVISORIES'); w.forEach(n=>L.push('  [CHECK] '+advisory(n.text))); }
+  if(i.length){ L.push('','TRANSLATION TRACE'); i.forEach(n=>L.push('  [TRACE] '+advisory(n.text))); }
+  L.push('', HR, 'MONITORING / ALARM CHECKLIST',
+    '  • Delivered Vt (Vte), respiratory rate, patient-triggered fraction, minute ventilation',
+    '  • Pressure delivery, leak and interface fit; SpO2 / CO2 where available',
+    '  • Configure: circuit disconnect, low/high Vt, low/high MV, low/high rate, low/high pressure, apnea / no-trigger, accessory (SpO2, pulse, EtCO2, FiO2)',
+    '', 'CIRCUIT: leak (single-limb, open) circuits only — confirm circuit type before use.',
+    'DISCLAIMER: parameter names and scales differ between platforms; this report maps by clinical intent and is a starting point only. Clinical assessment is required before and after initiation.', HR);
+  return L.join('\n');
+}
+function download(){
+  const blob=new Blob(['﻿'+reportText()],{type:'text/plain;charset=utf-8'}), a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download=`NIVtechExchange_${state.sourceDevice.replace(/\W+/g,'_')}_to_${state.targetDevice.replace(/\W+/g,'_')}.txt`; a.click(); URL.revokeObjectURL(a.href); toast('Report downloaded');
+}
+async function share(){
+  const text=reportText();
+  if(navigator.share){ try{ await navigator.share({title:`NIVtechExchange: ${state.sourceDevice} ⇒ ${state.targetDevice}`,text}); }catch(e){} }
+  else { try{ await navigator.clipboard.writeText(text); toast('Report copied to clipboard'); }catch(e){ toast('Share unavailable — use Download'); } }
+}
+function printReport(){
+  const r=last||compute(), c=cfgNow(), d=deviceData[state.sourceDevice], now=new Date().toLocaleString();
+  const src=visibleSettingKeys(c).map(k=>{const u=canonicalSettings[k]?.unit;return `<tr><td>${esc(localName(state.sourceDevice,k))}</td><td class="v">${esc(state.values[k]??'')}${u?' '+esc(u):''}</td></tr>`}).join('');
+  const tgt=r.rows.filter(x=>x.label!=='Mode').map(x=>`<tr${x.warn?' class="f"':''}><td>${esc(x.label)}</td><td class="v">${esc(x.val)}${x.warn?' ▲':''}</td></tr>`).join('');
+  const adv=r.notes.map(n=>`<div class="n ${n.type==='warning'?'w':''}"><b>${n.type==='warning'?'CHECK':'TRACE'}</b> ${esc(advisory(n.text))}</div>`).join('');
+  const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>NIVtechExchange report</title><style>
+  *{box-sizing:border-box;margin:0;padding:0}body{font-family:"Segoe UI",Arial,sans-serif;color:#0b1220;padding:26px 34px;font-size:10.5pt}
+  h1{font-size:16pt;letter-spacing:.3px}h1 b{color:#0f766e}.sub{font:9pt Consolas,monospace;color:#5d7399;margin:2px 0 14px}
+  .bar{height:5px;background:linear-gradient(90deg,#2dd4bf,#fbbf24);border-radius:3px;margin-bottom:14px}
+  .route{display:flex;gap:14px;align-items:stretch;margin-bottom:14px}.box{flex:1;border:1.5px solid #0f766e;border-radius:8px;padding:9px 12px}
+  .box small{font:8pt Consolas,monospace;color:#0f766e;letter-spacing:.12em}.box div{font-weight:700}.arrow{align-self:center;font-size:20pt;color:#0f766e}
+  h2{font:700 9pt Consolas,monospace;letter-spacing:.14em;color:#fff;background:#0b1f3a;padding:5px 10px;border-radius:5px 5px 0 0;margin-top:14px}
+  table{width:100%;border-collapse:collapse;border:1px solid #c5d3ee}td{padding:5px 10px;border-bottom:1px solid #e3ebfa}td.v{font:700 10pt Consolas,monospace;width:34%}tr.f td{background:#fff8e5}
+  .n{font:8.6pt Consolas,monospace;border:1px solid #d5e0f5;border-left:4px solid #2dd4bf;border-radius:4px;padding:4px 8px;margin-top:4px}.n.w{border-left-color:#f59e0b;background:#fffaf0}
+  .disc{margin-top:16px;border:1.5px solid #0b1f3a;border-radius:6px;padding:9px 12px;font-size:8.8pt}
+  .btn{display:block;margin:0 auto 14px;background:#0f766e;color:#fff;border:0;border-radius:8px;padding:9px 28px;font-weight:700;cursor:pointer}@media print{.btn{display:none}body{padding:0}@page{margin:1.5cm}}
+  </style></head><body><button class="btn" onclick="window.print()">Print / Save as PDF</button>
+  <h1>NIVtech<b>Exchange</b></h1><div class="sub">TRANSLATION REPORT · ${esc(now)}</div><div class="bar"></div>
+  <div class="route"><div class="box"><small>SOURCE</small><div>${esc(state.sourceDevice)}</div><div style="font-weight:400">${esc(d.manufacturer)} · ${esc(state.sourceMode)}</div></div><div class="arrow">⇒</div><div class="box"><small>TARGET</small><div>${esc(state.targetDevice)}</div><div style="font-weight:400">${esc(r.modeName||'')}</div></div></div>
+  <h2>SOURCE PARAMETERS</h2><table>${src}</table>
+  <h2>TARGET PARAMETERS</h2><table>${tgt}</table>
+  <h2>ADVISORIES &amp; TRACE</h2>${adv}
+  <div class="disc"><b>Decision-support utility.</b> Platforms name and scale equivalent functions differently, so values cannot be copied by label. Each parameter is mapped by clinical intent. Treat the output as a starting point: clinical assessment is required before and after initiation. Leak (single-limb, open) circuits only — confirm circuit type, then set and test all alarms before use.</div>
+  </body></html>`;
+  const w=window.open('','_blank'); if(!w){ toast('Allow pop-ups to print'); return; } w.document.write(html); w.document.close(); w.focus(); setTimeout(()=>w.print(),500);
+}
+
+/* ── chrome ── */
+$('bDl').onclick=download; $('bShare').onclick=share; $('bPrint').onclick=printReport;
+$('bReset').onclick=()=>{ resetValues(); renderConsole(); renderOutput(); toast('Parameters reset to platform defaults'); };
+$('refBtn').onclick=()=>$('drawer').classList.add('open'); $('drawerClose').onclick=()=>$('drawer').classList.remove('open');
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') $('drawer').classList.remove('open'); });
+$('buildTag').textContent='build '+APP_VERSION;
+const rail=[...document.querySelectorAll('.rail a[data-s]')];
+const io=new IntersectionObserver(es=>{ es.forEach(en=>{ if(en.isIntersecting) rail.forEach(a=>a.classList.toggle('on',a.dataset.s===en.target.id)); }); },{rootMargin:'-30% 0px -60% 0px'});
+['s1','s2','s3','s4'].forEach(id=>io.observe($(id)));
+
+/* ── boot ── */
+resetValues(); renderSource(); renderConsole(); renderTargets(); renderOutput();
+})();
+</script>
+</body>
+</html>
